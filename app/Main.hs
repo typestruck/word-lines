@@ -41,7 +41,7 @@ app = (component 0 updateModel viewModel)
 updateModel :: Action -> Effect parent Int Action
 updateModel = \case
   AddOne ->
-    this += 1
+    this += 100
   SubtractOne ->
     this -= 1
   SayHelloWorld ->
