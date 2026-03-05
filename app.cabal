@@ -1,0 +1,47 @@
+cabal-version:      3.0
+name:               word-lines
+version:            0.1.0.0
+synopsis:           Word game
+description:        Fast paced, multiplayer word game
+license:            GPL-3.0-or-later
+license-file:       LICENSE
+author:             easafe
+maintainer:         e@asafe.dev
+category:           Game
+build-type:         Simple
+
+flag interactive
+  default:
+    False
+  manual:
+    True
+
+common warnings
+  ghc-options:
+    -funbox-strict-fields -O2 -ferror-spans -fspecialise-aggressively -Wall
+
+common options
+  if arch(wasm32)
+    ghc-options:
+      -no-hs-main -optl-mexec-model=reactor "-optl-Wl,--export=hs_start"
+    cpp-options:
+      -DWASM
+    if flag (interactive)
+      cpp-options:
+        -DINTERACTIVE
+
+  if arch(javascript)
+     ld-options:
+       -sEXPORTED_RUNTIME_METHODS=HEAP8
+
+executable app
+  import:
+    options, warnings
+  main-is:
+    Main.hs
+  build-depends:
+    base < 5, miso >= 1.9
+  hs-source-dirs:
+    app
+  default-language:
+    Haskell2010
