@@ -1,174 +1,132 @@
------------------------------------------------------------------------------
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE OverloadedStrings #-}
------------------------------------------------------------------------------
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Main where
------------------------------------------------------------------------------
-import           Miso
-import           Miso.Html.Element as H
-import           Miso.Html.Event as E
-import           Miso.Html.Property as P
-import           Miso.Lens
-import           Miso.String
-import qualified Miso.CSS as CSS
-import           Miso.CSS (StyleSheet)
------------------------------------------------------------------------------
-data Action
-  = AddOne
-  | SubtractOne
-  | SayHelloWorld
+
+import           Miso               (App, Effect, View, defaultEvents, MisoString)
+import qualified Miso               as M
+import qualified Miso.Html.Element  as HE
+import qualified Miso.Html.Property as HP
+import qualified Miso.State         as MS
+import Letters as L
+import qualified System.Random as MR
+import System.Random (StdGen)
+import Control.Monad.RWS (MonadState)
+
+default (MisoString)
+
+data Action =
+  NewGame
   deriving (Show, Eq)
------------------------------------------------------------------------------
+
+data Model = Model
+  { board :: [Int]
+  , home  :: [Int]
+  , away  :: [Int]
+  , generator :: StdGen
+  }
+
+instance Eq Model where
+  m == n = m.board == n.board && m.home == n.home && m.away == n.away
+
 #ifdef WASM
 #ifndef INTERACTIVE
 foreign export javascript "hs_start" main :: IO ()
 #endif
 #endif
------------------------------------------------------------------------------
+
 main :: IO ()
 #ifdef INTERACTIVE
-main = reload (startApp defaultEvents app)
+main = do
+  generator <- MR.newStdGen
+  M.live defaultEvents $ app generator
 #else
-main = startApp defaultEvents app
+main = do
+  generator <- MR.newStdGen
+  M.startApp defaultEvents $ app generator
 #endif
------------------------------------------------------------------------------
-app :: App Int Action
-app = (component 0 updateModel viewModel)
-  { styles = [ Sheet sheet ]
-  }
------------------------------------------------------------------------------
-updateModel :: Action -> Effect parent Int Action
-updateModel = \case
-  AddOne ->
-    this += 100
-  SubtractOne ->
-    this -= 1
-  SayHelloWorld ->
-    io_ (consoleLog "Hello World!")
------------------------------------------------------------------------------
-viewModel :: Int -> View Int Action
-viewModel x = H.div_
-  [ P.class_ "counter-container" ]
-  [ H.h1_
-    [ P.class_ "counter-title"
-    ]
-    [ "🍜 Miso sampler"
-    ]
-  , H.div_
-    [ P.class_ "counter-display"
-    ]
-    [ text (ms x)
-    ]
-  , H.div_
-    [ P.class_ "buttons-container"
-    ]
-    [ H.button_
-      [ E.onClick AddOne
-      , P.class_ "decrement-btn"
-      ] [text "+"]
-    , H.button_
-      [ E.onClick SubtractOne
-      , P.class_ "increment-btn"
-      ] [text "-"]
-    ]
+
+app :: StdGen -> App Model Action
+app generator = M.component initialModel updateModel viewModel
+  where
+    initialModel = Model {board = replicate (13 * 13) 0, home = [], away = [], generator = generator }
+
+updateModel :: Action -> Effect parent Model Action
+updateModel =
+  \case
+    NewGame -> do
+      homeLetters <- produceLetters
+      awayLetters <- produceLetters
+      vowel <- initialVowel
+      MS.modify
+        $ \m ->
+            m { board = emptyTiles <> (vowel : emptyTiles)
+            , home = homeLetters
+            , away = awayLetters
+            }
+      where
+        emptyTiles = replicate 84 0
+
+        produceLetters = randomLetters 8
+
+        initialVowel = do
+            model <- MS.get
+            let (d :: Float, nextGenerator) = MR.random model.generator
+            MS.modify $ \m -> m { generator = nextGenerator }
+            return $ if  d >= 0.0 && d < 0.25 then
+               letterE
+            else if d >= 0.25 && d < 0.50 then
+               letterI
+            else if d >= 0.50 && d < 0.75 then
+               letterA
+            else
+               letterO
+
+randomLetters :: MonadState Model m => Int -> m [Int]
+randomLetters howMany = do
+  model <- MS.get
+  let (letters, generator) = go howMany ([], model.generator)
+  MS.modify $ \m -> m { generator = generator }
+  return letters
+  where go 0 t = t
+        go n (letters, gen) =  let (l, nextGen) = MR.random gen in go (n - 1) (pickLetter l : letters, nextGen)
+
+        pickLetter :: Float -> Int
+        pickLetter d
+          | d >= 0.538979491 && d <= 0.644002294 = letterE
+          | d >= 0.267441153 && d <= 0.357286225 = letterI
+          | d >= 0.785527013 && d <= 0.873785630 = letterA
+          | d >= 0.105176925 && d <= 0.181368894 = letterO
+          | d >= 0.418384245 && d <= 0.490188708 = letterR
+          | d >= 0.682697737 && d <= 0.753512962 = letterN
+          | d >= 0.903911257 && d <= 0.971676778 = letterT
+          | d >= 0.023092087 && d <= 0.084533740 = letterS
+          | d >= 0.198858882 && d <= 0.256828792 = letterL
+          | d >= 0.366164283 && d <= 0.411389683 = letterC
+          | d >= 0.496249139 && d <= 0.535292247 = letterU
+          | d >= 0.647066784 && d <= 0.681059310 = letterP
+          | d >= 0.754715013 && d <= 0.785527012 = letterM
+          | d >= 0.873785631 && d <= 0.903911256 = letterD
+          | d >= 0.971676779 && d <= 1.000000001 = letterH
+          | d >= 0.000000000 && d <= 0.023092086 = letterY
+          | d >= 0.084533741 && d <= 0.105176924 = letterG
+          | d >= 0.181368895 && d <= 0.198858881 = letterB
+          | d >= 0.256828793 && d <= 0.267441152 = letterF
+          | d >= 0.357286226 && d <= 0.366164282 = letterV
+          | d >= 0.411389684 && d <= 0.418384244 = letterK
+          | d >= 0.490188709 && d <= 0.496249138 = letterW
+          | d >= 0.535292248 && d <= 0.538979490 = letterZ
+          | d >= 0.644002295 && d <= 0.647066783 = letterX
+          | d >= 0.681059311 && d <= 0.682697736 = letterQ
+          | d >= 0.753512963 && d <= 0.75471501 = letterJ
+          | otherwise = error "missing letter range"
+
+
+viewModel :: Model -> View Model Action
+viewModel m = HE.main_ [] [
+    HE.div_ [HP.className "board"] $ map makeTile m.board
   ]
------------------------------------------------------------------------------
-sheet :: StyleSheet
-sheet =
-  CSS.sheet_
-  [ CSS.selector_ ":root"
-    [ "--primary-color" =: "#4a6bff"
-    , "--primary-hover" =: "#3451d1"
-    , "--secondary-color" =: "#ff4a6b"
-    , "--secondary-hover" =: "#d13451"
-    , "--background" =: "#f7f9fc"
-    , "--text-color" =: "#333"
-    , "--shadow" =: "0 4px 10px rgba(0, 0, 0, 0.1);"
-    , "--transition" =: "all 0.3s ease;"
-    ]
-  , CSS.selector_ "body"
-    [ CSS.fontFamily "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
-    , CSS.display "flex"
-    , CSS.justifyContent "center"
-    , CSS.alignItems "center"
-    , CSS.height "100vh"
-    , CSS.margin "0"
-    , CSS.backgroundColor (CSS.var "background")
-    , CSS.color (CSS.var "text-color")
-    ]
-  , CSS.selector_ ".counter-container"
-    [ CSS.backgroundColor CSS.white
-    , CSS.padding (CSS.rem 2)
-    , CSS.borderRadius (CSS.px 12)
-    , CSS.boxShadow "shadow"
-    , CSS.textAlign "center"
-    ]
-  , CSS.selector_ ".counter-display"
-    [ CSS.fontSize "5rem"
-    , CSS.fontWeight "bold"
-    , CSS.margin "1CSS.rem 0"
-    , CSS.transition "var(--transition)"
-    ]
-  , CSS.selector_ ".buttons-container"
-    [ CSS.display "flex"
-    , CSS.gap "1rem"
-    , CSS.justifyContent "center"
-    , CSS.marginTop "1.5rem"
-    ]
-  , CSS.selector_ "button"
-    [ CSS.fontSize "1.5rem"
-    , CSS.width "3rem"
-    , CSS.height "3rem"
-    , CSS.border "none"
-    , CSS.borderRadius "50%"
-    , CSS.cursor "pointer"
-    , CSS.transition "var(--transition)"
-    , CSS.color CSS.white
-    , CSS.display "flex"
-    , CSS.alignItems "center"
-    , CSS.justifyContent "center"
-    ]
-  , CSS.selector_ ".increment-btn"
-    [ CSS.backgroundColor (CSS.var "primary-color")
-    ]
-  , CSS.selector_ ".increment-btn:hover"
-    [ CSS.backgroundColor (CSS.var "primary-hover")
-    , CSS.transform "translateY(-2px)"
-    ]
-  , CSS.selector_ ".decrement-btn"
-    [ CSS.backgroundColor (CSS.var "secondary-color")
-    ]
-  , CSS.selector_ ".decrement-btn:hover"
-    [ CSS.backgroundColor (CSS.var "secondary-hover")
-    , CSS.transform "translateY(-2px)"
-    ]
-  , CSS.keyframes_ "pulse"
-    [ CSS.pct 0 =:
-      [ CSS.transform "scale(1)"
-      ]
-    , CSS.pct 50 =:
-      [ CSS.transform "scale(1.1)"
-      ]
-    , CSS.pct 100 =:
-      [ CSS.transform "scale(1)"
-      ]
-    ]
-  , CSS.selector_ ".counter-display.animate"
-    [ CSS.animation "pulse 0.3s ease"
-    ]
-  , CSS.media_ "(max-width: 480px)"
-    [ ".counter-container" =:
-      [ CSS.padding (CSS.rem 1.5)
-      ]
-    , ".counter-display" =:
-      [ CSS.fontSize (CSS.rem 3)
-      ]
-    , "button" =:
-      [ CSS.fontSize (CSS.rem 1.2)
-      , CSS.width (CSS.rem 2.5)
-      , CSS.width (CSS.rem 2.5)
-      ]
-    ]
-  ]
------------------------------------------------------------------------------
+  where
+  makeTile n = HE.div_ [HP.className "tile"] [M.text $ if n == 0 then "" else L.displayLetter n ]

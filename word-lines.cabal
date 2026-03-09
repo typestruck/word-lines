@@ -40,8 +40,10 @@ executable app
   main-is:
     Main.hs
   build-depends:
-    base < 5, miso >= 1.9
+    base < 5, miso >= 1.9, mtl, random
+  other-modules:
+    Letters
   hs-source-dirs:
     app
   default-language:
-    Haskell2010
+    GHC2024
