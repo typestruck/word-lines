@@ -5,31 +5,38 @@
 
 module Main where
 
-import           Miso               (App, Effect, View, defaultEvents, MisoString)
+import           Miso               (App, styles, mount, Effect, View, defaultEvents, MisoString)
 import qualified Miso               as M
 import qualified Miso.Html.Element  as HE
 import qualified Miso.Html.Property as HP
+import qualified Miso.Html.Event as HP
 import qualified Miso.State         as MS
 import Letters as L
 import qualified System.Random as MR
 import System.Random (StdGen)
 import Control.Monad.RWS (MonadState)
+import Styles (styleSheet)
 
 default (MisoString)
 
 data Action =
   NewGame
+  | SelectTile Tile
+  | PlaceTile (Maybe Tile) Int
   deriving (Show, Eq)
 
+data Tile = Tile { id :: Int, letter :: Int } deriving (Show, Eq)
+
 data Model = Model
-  { board :: [Int]
-  , home  :: [Int]
-  , away  :: [Int]
+  { board :: [Tile]
+  , home  :: [Tile]
+  , away  :: [Tile]
   , generator :: StdGen
+  , selected :: Maybe Tile
   }
 
 instance Eq Model where
-  m == n = m.board == n.board && m.home == n.home && m.away == n.away
+  m == n = m.board == n.board && m.home == n.home && m.away == n.away && m.selected == n.selected
 
 #ifdef WASM
 #ifndef INTERACTIVE
@@ -49,40 +56,62 @@ main = do
 #endif
 
 app :: StdGen -> App Model Action
-app generator = M.component initialModel updateModel viewModel
+app generator = (M.component initialModel updateModel viewModel) { mount = Just NewGame, styles = [ styleSheet ] }
   where
-    initialModel = Model {board = replicate (13 * 13) 0, home = [], away = [], generator = generator }
+  initialModel = Model {board = emptyBoard, home = [], away = [], generator = generator, selected = Nothing }
+
+emptyBoard :: [Tile]
+emptyBoard = zipWith Tile [1..13 *13] $ replicate (13 * 13) 0
 
 updateModel :: Action -> Effect parent Model Action
 updateModel =
   \case
-    NewGame -> do
-      homeLetters <- produceLetters
-      awayLetters <- produceLetters
-      vowel <- initialVowel
-      MS.modify
-        $ \m ->
-            m { board = emptyTiles <> (vowel : emptyTiles)
-            , home = homeLetters
-            , away = awayLetters
-            }
-      where
-        emptyTiles = replicate 84 0
+    NewGame -> newGame
+    SelectTile t -> selectTile t
+    PlaceTile t i -> placeTile t i
 
-        produceLetters = randomLetters 8
+newGame :: Effect parent Model Action
+newGame  = do
+  homeLetters <- produceLetters
+  awayLetters <- produceLetters
+  vowel <- initialVowel
+  MS.modify
+    $ \m ->
+        m { board = replaceAt 84 vowel emptyBoard
+        , home = homeLetters
+        , away = awayLetters
+        }
+  where
+  produceLetters = zipWith Tile [1..8] <$> randomLetters 8
+  initialVowel = do
+    model <- MS.get
+    let (d :: Float, nextGenerator) = MR.random model.generator
+    MS.modify $ \m -> m { generator = nextGenerator }
+    return $ if  d >= 0.0 && d < 0.25 then
+        letterE
+    else if d >= 0.25 && d < 0.50 then
+        letterI
+    else if d >= 0.50 && d < 0.75 then
+        letterA
+    else
+        letterO
 
-        initialVowel = do
-            model <- MS.get
-            let (d :: Float, nextGenerator) = MR.random model.generator
-            MS.modify $ \m -> m { generator = nextGenerator }
-            return $ if  d >= 0.0 && d < 0.25 then
-               letterE
-            else if d >= 0.25 && d < 0.50 then
-               letterI
-            else if d >= 0.50 && d < 0.75 then
-               letterA
-            else
-               letterO
+replaceAt :: Int -> Int -> [Tile] -> [Tile]
+replaceAt i letter = map f
+  where
+  f t
+    | t.id == i = Tile {id = i, letter}
+    | otherwise = t
+
+selectTile :: Tile -> Effect parent Model Action
+selectTile t = do
+  MS.modify $ \m -> m { selected = Just t }
+
+placeTile :: Maybe Tile -> Int -> Effect parent Model Action
+placeTile t i =  case t of
+  Nothing -> pure ()
+  Just tile ->
+    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board }
 
 randomLetters :: MonadState Model m => Int -> m [Int]
 randomLetters howMany = do
@@ -123,10 +152,10 @@ randomLetters howMany = do
           | d >= 0.753512963 && d <= 0.75471501 = letterJ
           | otherwise = error "missing letter range"
 
-
 viewModel :: Model -> View Model Action
 viewModel m = HE.main_ [] [
-    HE.div_ [HP.className "board"] $ map makeTile m.board
+    HE.div_ [HP.className "board"] $ map (\t -> makeTile (PlaceTile m.selected t.id) t) m.board,
+    HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) m.home
   ]
   where
-  makeTile n = HE.div_ [HP.className "tile"] [M.text $ if n == 0 then "" else L.displayLetter n ]
+  makeTile action t = HE.div_ [HP.className "tile", HP.onClick action] [M.text $ if t.letter == 0 then "" else L.displayLetter t.letter ]

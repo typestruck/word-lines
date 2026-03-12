@@ -42,7 +42,7 @@ executable app
   build-depends:
     base < 5, miso >= 1.9, mtl, random
   other-modules:
-    Letters
+    Letters, Styles
   hs-source-dirs:
     app
   default-language:
