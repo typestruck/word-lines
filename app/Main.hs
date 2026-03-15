@@ -18,13 +18,13 @@ import Control.Monad.RWS (MonadState)
 import       Data.Text (Text)
 import Styles (styleSheet)
 import qualified Data.HashMap.Strict as DM
+import qualified Data.Bifunctor as DB
 import qualified Data.HashSet as DS
 import Data.HashSet (HashSet)
 import qualified Data.List as DL
 import Prelude hiding (words)
-import qualified Data.Text as DT
 import qualified Miso.String as MSS
-import qualified Data.Text.IO as DTI
+import Dictionary (englishDictionary)
 
 default (MisoString)
 
@@ -32,10 +32,11 @@ data Action =
   NewGame
   | SelectTile Tile
   | PlaceTile (Maybe Tile) Int
-  | SubmitWords
   deriving (Show, Eq)
 
-data Tile = Tile { id :: Int, letter :: Int } deriving (Show, Eq)
+data Status = Valid | Invalid deriving (Show, Eq)
+
+data Tile = Tile { id :: Int, letter :: Int, status :: Status } deriving (Show, Eq)
 
 data Player = Player { tiles :: [Tile], score :: Int} deriving (Show, Eq)
 
@@ -54,6 +55,9 @@ instance Eq Model where
 size :: Int
 size = 13
 
+startingTiles :: Int
+startingTiles = 8
+
 #ifdef WASM
 #ifndef INTERACTIVE
 foreign export javascript "hs_start" main :: IO ()
@@ -64,19 +68,12 @@ main :: IO ()
 #ifdef INTERACTIVE
 main = do
   generator <- MR.newStdGen
-  dictionary <- readDictionary
-  M.live defaultEvents $ app dictionary generator
+  M.live defaultEvents $ app englishDictionary generator
 #else
 main = do
   generator <- MR.newStdGen
-  dictionary <- readDictionary
-  M.startApp defaultEvents $ app dictionary generator
+  M.startApp defaultEvents $ app englishDictionary generator
 #endif
-
-readDictionary :: IO (HashSet Text)
-readDictionary = do
-  --contents <- DTI.readFile "dict"
-  pure . DS.fromList $ DT.words "contents"
 
 app :: HashSet Text -> StdGen -> App Model Action
 app dictionary generator = (M.component initialModel updateModel viewModel) { mount = Just NewGame, styles = [ styleSheet ] }
@@ -86,8 +83,11 @@ app dictionary generator = (M.component initialModel updateModel viewModel) { mo
 barePlayer :: Player
 barePlayer = Player { tiles = [], score = 0 }
 
+bareTile :: Int -> Int -> Tile
+bareTile i l = Tile { id = i, letter = l, status = Invalid }
+
 emptyBoard :: [Tile]
-emptyBoard = zipWith Tile [1..size *size] $ replicate (size * size) 0
+emptyBoard = zipWith bareTile [1..size *size] $ replicate (size * size) 0
 
 updateModel :: Action -> Effect parent Model Action
 updateModel =
@@ -95,7 +95,6 @@ updateModel =
     NewGame -> newGame
     SelectTile t -> selectTile t
     PlaceTile t i -> placeTile t i
-    SubmitWords -> submitWords
 
 newGame :: Effect parent Model Action
 newGame  = do
@@ -104,12 +103,12 @@ newGame  = do
   vowel <- initialVowel
   MS.modify
     $ \m ->
-        m { board = replaceAt 84 vowel emptyBoard
+        m { board = replaceAt 85 vowel emptyBoard
         , home = m.home { tiles = homeLetters }
         , away = m.away { tiles =  awayLetters }
         }
   where
-  produceTiles = zipWith Tile [1..size] <$> randomLetters size
+  produceTiles = zipWith bareTile [1..startingTiles] <$> randomLetters startingTiles
   initialVowel = do
     model <- MS.get
     let (d :: Float, nextGenerator) = MR.random model.generator
@@ -127,7 +126,7 @@ replaceAt :: Int -> Int -> [Tile] -> [Tile]
 replaceAt i letter = map f
   where
   f t
-    | t.id == i = Tile {id = i, letter}
+    | t.id == i = Tile {id = i, letter, status = Invalid}
     | otherwise = t
 
 selectTile :: Tile -> Effect parent Model Action
@@ -138,30 +137,47 @@ placeTile :: Maybe Tile -> Int -> Effect parent Model Action
 placeTile t i =  case t of
   Nothing -> pure ()
   Just tile -> do
-    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board, home = m.home { tiles =  filter (tile /= ) m.home.tiles } }
+    letter <- randomLetters 1
+    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board, home = m.home { tiles = Tile { id = tile.id, letter = head letter, status = Invalid } : filter (tile /= ) m.home.tiles } }
+    gradeWords
 
-submitWords :: Effect parent Model Action
-submitWords = do
+gradeWords :: Effect parent Model Action
+gradeWords = do
   model <- MS.get
-  let (good, invalid) = checkWords model.dictionary model.board
-  --if null invalid then
-  pure ()
+  let checked = checkWords model.dictionary model.board
+  let (valid, invalid) = DB.bimap DS.fromList DS.fromList checked
+  MS.modify $ \m -> m { board = map (grade valid invalid) m.board }
+  where
+  grade valid invalid t
+    | DS.member t.id valid = t { status = Valid }
+    | DS.member t.id invalid = t { status = Invalid }
+    | otherwise = t
 
-checkWords :: HashSet Text -> [Tile] -> ([[Tile]], [[Tile]])
+checkWords :: HashSet Text -> [Tile] -> ([Int], [Int])
 checkWords dictionary board = check words [] []
   where
-  words = collectWords rows <> collectWords columns
+  words = collectWords rows [] [] <> collectWords columns [] []
   rows = board
   columns = reorient board . DM.fromList . zip [0..size -1] $ replicate size [] --size - 1 because size % size = 0
 
   reorient [] running = concat $ DM.elems running
   reorient (t : iles) running = reorient iles (DM.adjust (++ [t]) (t.id `mod` size) running)
 
-  collectWords = DL.groupBy (\t u -> t.letter /= 0 && u.letter /= 0 && t.id `mod` size > 0)
+  collectWords [] final running = if null running then  final else running : final
+  collectWords (f : rom) final running =
+    if f.letter == 0 || f.id `mod` size == 0 then
+      if null running then
+        collectWords rom final running
+      else
+        collectWords rom (running : final) []
+    else
+      collectWords rom final (running <> [f])
 
-  check :: [[Tile]] -> [[Tile]] -> [[Tile]] -> ([[Tile]], [[Tile]])
-  check [] good invalid = (good, invalid)
-  check (w : ords) good invalid = if DS.member (DT.concat $ map (MSS.fromMisoString . L.displayLetter . letter) w) dictionary then check ords (w : good) invalid else check ords good (w : invalid)
+  check :: [[Tile]] -> [Int] -> [Int] -> ([Int], [Int])
+  check [] valid invalid = (valid, invalid)
+  check (w : ords) valid invalid = if DS.member (MSS.fromMisoString . MSS.concat $ map (L.displayLetter . letter) w) dictionary then check ords (add w valid) invalid else check ords valid (add w invalid)
+
+  add w list = map (\t -> t.id) w <> list
 
 randomLetters :: MonadState Model m => Int -> m [Int]
 randomLetters howMany = do
@@ -206,14 +222,16 @@ viewModel :: Model -> View Model Action
 viewModel m = HE.main_ [] [
     HE.div_ [HP.className "left-side"] [
       HE.div_ [HP.className "board"] $ map (\t -> makeTile (PlaceTile m.selected t.id) t) m.board,
-      HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) m.home.tiles
+      HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) $ DL.sortBy alpha m.home.tiles
     ],
     HE.div_ [HP.className "right-side"] [
       HE.div_ [HP.className "submit-button"] [
-        HE.button_ [HP.className "submit"] [M.text "Submit"]
+        HE.button_ [HP.className "submit"] [M.text "End game"]
       ],
-      HE.button_ [HP.className "submit"] [M.text "Pass"]
+     HE.button_ [HP.className "submit"] [M.text "Pass"]
     ]
   ]
   where
-  makeTile action t = HE.div_ [HP.className "tile", HP.onClick action] [M.text $ if t.letter == 0 then "" else L.displayLetter t.letter ]
+  alpha t u = compare t.letter u.letter
+
+  makeTile action t = HE.div_ [HP.classList_ [("tile", True), ("valid", t.status == Valid )], HP.onClick action] [M.text $ if t.letter == 0 then "" else L.displayLetter t.letter ]

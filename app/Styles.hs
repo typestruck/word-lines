@@ -54,6 +54,10 @@ main {
     font-size:1.6em
 }
 
+.board .tile {
+    color: red;
+}
+
 .right-side {
     display: flex;
     justify-content: end;
@@ -67,6 +71,10 @@ main {
 
 .submit-button {
     margin-bottom:20px
+}
+
+.board .tile.valid {
+    color: inherit
 }
 
 """

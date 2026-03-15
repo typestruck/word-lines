@@ -114,3 +114,4 @@ displayLetter =  \case
     88 -> "X"
     81 -> "Q"
     74 -> "J"
+    b -> error $ show b
