@@ -15,7 +15,16 @@ import Letters as L
 import qualified System.Random as MR
 import System.Random (StdGen)
 import Control.Monad.RWS (MonadState)
+import       Data.Text (Text)
 import Styles (styleSheet)
+import qualified Data.HashMap.Strict as DM
+import qualified Data.HashSet as DS
+import Data.HashSet (HashSet)
+import qualified Data.List as DL
+import Prelude hiding (words)
+import qualified Data.Text as DT
+import qualified Miso.String as MSS
+import qualified Data.Text.IO as DTI
 
 default (MisoString)
 
@@ -23,20 +32,27 @@ data Action =
   NewGame
   | SelectTile Tile
   | PlaceTile (Maybe Tile) Int
+  | SubmitWords
   deriving (Show, Eq)
 
 data Tile = Tile { id :: Int, letter :: Int } deriving (Show, Eq)
 
+data Player = Player { tiles :: [Tile], score :: Int} deriving (Show, Eq)
+
 data Model = Model
   { board :: [Tile]
-  , home  :: [Tile]
-  , away  :: [Tile]
-  , generator :: StdGen
+  , home  :: Player
+  , away  :: Player
   , selected :: Maybe Tile
+  , generator :: StdGen
+  , dictionary :: HashSet Text
   }
 
 instance Eq Model where
   m == n = m.board == n.board && m.home == n.home && m.away == n.away && m.selected == n.selected
+
+size :: Int
+size = 13
 
 #ifdef WASM
 #ifndef INTERACTIVE
@@ -48,20 +64,30 @@ main :: IO ()
 #ifdef INTERACTIVE
 main = do
   generator <- MR.newStdGen
-  M.live defaultEvents $ app generator
+  dictionary <- readDictionary
+  M.live defaultEvents $ app dictionary generator
 #else
 main = do
   generator <- MR.newStdGen
-  M.startApp defaultEvents $ app generator
+  dictionary <- readDictionary
+  M.startApp defaultEvents $ app dictionary generator
 #endif
 
-app :: StdGen -> App Model Action
-app generator = (M.component initialModel updateModel viewModel) { mount = Just NewGame, styles = [ styleSheet ] }
+readDictionary :: IO (HashSet Text)
+readDictionary = do
+  --contents <- DTI.readFile "dict"
+  pure . DS.fromList $ DT.words "contents"
+
+app :: HashSet Text -> StdGen -> App Model Action
+app dictionary generator = (M.component initialModel updateModel viewModel) { mount = Just NewGame, styles = [ styleSheet ] }
   where
-  initialModel = Model {board = emptyBoard, home = [], away = [], generator = generator, selected = Nothing }
+  initialModel = Model { board = emptyBoard, home = barePlayer, away = barePlayer, generator = generator, dictionary = dictionary, selected = Nothing }
+
+barePlayer :: Player
+barePlayer = Player { tiles = [], score = 0 }
 
 emptyBoard :: [Tile]
-emptyBoard = zipWith Tile [1..13 *13] $ replicate (13 * 13) 0
+emptyBoard = zipWith Tile [1..size *size] $ replicate (size * size) 0
 
 updateModel :: Action -> Effect parent Model Action
 updateModel =
@@ -69,20 +95,21 @@ updateModel =
     NewGame -> newGame
     SelectTile t -> selectTile t
     PlaceTile t i -> placeTile t i
+    SubmitWords -> submitWords
 
 newGame :: Effect parent Model Action
 newGame  = do
-  homeLetters <- produceLetters
-  awayLetters <- produceLetters
+  homeLetters <- produceTiles
+  awayLetters <- produceTiles
   vowel <- initialVowel
   MS.modify
     $ \m ->
         m { board = replaceAt 84 vowel emptyBoard
-        , home = homeLetters
-        , away = awayLetters
+        , home = m.home { tiles = homeLetters }
+        , away = m.away { tiles =  awayLetters }
         }
   where
-  produceLetters = zipWith Tile [1..8] <$> randomLetters 8
+  produceTiles = zipWith Tile [1..size] <$> randomLetters size
   initialVowel = do
     model <- MS.get
     let (d :: Float, nextGenerator) = MR.random model.generator
@@ -110,8 +137,31 @@ selectTile t = do
 placeTile :: Maybe Tile -> Int -> Effect parent Model Action
 placeTile t i =  case t of
   Nothing -> pure ()
-  Just tile ->
-    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board }
+  Just tile -> do
+    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board, home = m.home { tiles =  filter (tile /= ) m.home.tiles } }
+
+submitWords :: Effect parent Model Action
+submitWords = do
+  model <- MS.get
+  let (good, invalid) = checkWords model.dictionary model.board
+  --if null invalid then
+  pure ()
+
+checkWords :: HashSet Text -> [Tile] -> ([[Tile]], [[Tile]])
+checkWords dictionary board = check words [] []
+  where
+  words = collectWords rows <> collectWords columns
+  rows = board
+  columns = reorient board . DM.fromList . zip [0..size -1] $ replicate size [] --size - 1 because size % size = 0
+
+  reorient [] running = concat $ DM.elems running
+  reorient (t : iles) running = reorient iles (DM.adjust (++ [t]) (t.id `mod` size) running)
+
+  collectWords = DL.groupBy (\t u -> t.letter /= 0 && u.letter /= 0 && t.id `mod` size > 0)
+
+  check :: [[Tile]] -> [[Tile]] -> [[Tile]] -> ([[Tile]], [[Tile]])
+  check [] good invalid = (good, invalid)
+  check (w : ords) good invalid = if DS.member (DT.concat $ map (MSS.fromMisoString . L.displayLetter . letter) w) dictionary then check ords (w : good) invalid else check ords good (w : invalid)
 
 randomLetters :: MonadState Model m => Int -> m [Int]
 randomLetters howMany = do
@@ -154,8 +204,16 @@ randomLetters howMany = do
 
 viewModel :: Model -> View Model Action
 viewModel m = HE.main_ [] [
-    HE.div_ [HP.className "board"] $ map (\t -> makeTile (PlaceTile m.selected t.id) t) m.board,
-    HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) m.home
+    HE.div_ [HP.className "left-side"] [
+      HE.div_ [HP.className "board"] $ map (\t -> makeTile (PlaceTile m.selected t.id) t) m.board,
+      HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) m.home.tiles
+    ],
+    HE.div_ [HP.className "right-side"] [
+      HE.div_ [HP.className "submit-button"] [
+        HE.button_ [HP.className "submit"] [M.text "Submit"]
+      ],
+      HE.button_ [HP.className "submit"] [M.text "Pass"]
+    ]
   ]
   where
   makeTile action t = HE.div_ [HP.className "tile", HP.onClick action] [M.text $ if t.letter == 0 then "" else L.displayLetter t.letter ]

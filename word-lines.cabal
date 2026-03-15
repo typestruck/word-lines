@@ -40,9 +40,9 @@ executable app
   main-is:
     Main.hs
   build-depends:
-    base < 5, miso >= 1.9, mtl, random
+    base < 5, miso >= 1.9, mtl, random, unordered-containers, text, bytestring, file-embed
   other-modules:
-    Letters, Styles
+    Letters, Styles, Dictionary
   hs-source-dirs:
     app
   default-language:

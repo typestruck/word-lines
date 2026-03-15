@@ -25,6 +25,7 @@ body {
 
 main {
     margin-left:20px;
+    display: flex;
 }
 
 .board {
@@ -51,6 +52,21 @@ main {
     display:flex;
     background: #393E41;
     font-size:1.6em
+}
+
+.right-side {
+    display: flex;
+    justify-content: end;
+    flex-direction: column;
+    margin-left:20px
+}
+
+.submit {
+    font-size:1.6em
+}
+
+.submit-button {
+    margin-bottom:20px
 }
 
 """
