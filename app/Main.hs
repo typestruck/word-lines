@@ -25,13 +25,14 @@ import qualified Data.List as DL
 import Prelude hiding (words)
 import qualified Miso.String as MSS
 import Dictionary (englishDictionary)
+import Debug.Trace (traceShow)
 
 default (MisoString)
 
 data Action =
   NewGame
   | SelectTile Tile
-  | PlaceTile (Maybe Tile) Int
+  | ToggleTile (Maybe Tile) Int
   deriving (Show, Eq)
 
 data Status = Valid | Invalid deriving (Show, Eq)
@@ -67,11 +68,11 @@ foreign export javascript "hs_start" main :: IO ()
 main :: IO ()
 #ifdef INTERACTIVE
 main = do
-  generator <- MR.newStdGen
+  generator <- pure $ MR.mkStdGen 3453453 -- MR.newStdGen
   M.live defaultEvents $ app englishDictionary generator
 #else
 main = do
-  generator <- MR.newStdGen
+  generator <- pure $ MR.mkStdGen 3453453 -- MR.newStdGen
   M.startApp defaultEvents $ app englishDictionary generator
 #endif
 
@@ -94,7 +95,7 @@ updateModel =
   \case
     NewGame -> newGame
     SelectTile t -> selectTile t
-    PlaceTile t i -> placeTile t i
+    ToggleTile t i -> toggleTile t i
 
 newGame :: Effect parent Model Action
 newGame  = do
@@ -133,37 +134,54 @@ selectTile :: Tile -> Effect parent Model Action
 selectTile t = do
   MS.modify $ \m -> m { selected = Just t }
 
-placeTile :: Maybe Tile -> Int -> Effect parent Model Action
-placeTile t i =  case t of
+toggleTile :: Maybe Tile -> Int -> Effect parent Model Action
+toggleTile t i =  case t of
   Nothing -> pure ()
   Just tile -> do
-    letter <- randomLetters 1
-    MS.modify $ \m -> m { selected = Nothing, board = replaceAt i tile.letter m.board, home = m.home { tiles = Tile { id = tile.id, letter = head letter, status = Invalid } : filter (tile /= ) m.home.tiles } }
-    gradeWords
+    model <- MS.get
+    let existing = (model.board !! (i - 1)).letter
+        updatedBoard = checkBoard model.dictionary $ replaceAt i tile.letter model.board
+        updatedHome = filter (tile /= ) model.home.tiles
+    newLetters <- randomLetters $ startingTiles - length updatedHome
+    MS.modify $ \m -> m {
+      selected = Nothing,
+      board = updatedBoard,
+      home = m.home {
+        tiles =
+          if existing > 0 then
+            bareTile tile.id existing : updatedHome
+          else if (updatedBoard !! (i - 1)).status == Valid then
+            map (bareTile tile.id) newLetters <> updatedHome
+          else
+            updatedHome
+      }
+    }
 
-gradeWords :: Effect parent Model Action
-gradeWords = do
-  model <- MS.get
-  let checked = checkWords model.dictionary model.board
-  let (valid, invalid) = DB.bimap DS.fromList DS.fromList checked
-  MS.modify $ \m -> m { board = map (grade valid invalid) m.board }
+checkBoard :: HashSet Text -> [Tile] -> [Tile]
+checkBoard dictionary board = map check board
   where
-  grade valid invalid t
+  (valid, invalid) = DB.bimap DS.fromList DS.fromList $ checkWords dictionary board
+  check t
     | DS.member t.id valid = t { status = Valid }
     | DS.member t.id invalid = t { status = Invalid }
     | otherwise = t
 
 checkWords :: HashSet Text -> [Tile] -> ([Int], [Int])
-checkWords dictionary board = check words [] []
+checkWords dictionary board = check words [] $ map (\[t] -> t.id) straggles
   where
-  words = collectWords rows [] [] <> collectWords columns [] []
+  (words, straggles) =
+    let r = collectWords rows [] []
+        c = collectWords columns [] []
+    in
+      (filter ((1 <) . length) (r <> c), filter ((1 ==) . length) r  `DL.intersect` filter ((1 ==) . length)c)
+
   rows = board
   columns = reorient board . DM.fromList . zip [0..size -1] $ replicate size [] --size - 1 because size % size = 0
 
   reorient [] running = concat $ DM.elems running
   reorient (t : iles) running = reorient iles (DM.adjust (++ [t]) (t.id `mod` size) running)
 
-  collectWords [] final running = if null running then  final else running : final
+  collectWords [] final running = if null running then final else running : final
   collectWords (f : rom) final running =
     if f.letter == 0 || f.id `mod` size == 0 then
       if null running then
@@ -221,14 +239,14 @@ randomLetters howMany = do
 viewModel :: Model -> View Model Action
 viewModel m = HE.main_ [] [
     HE.div_ [HP.className "left-side"] [
-      HE.div_ [HP.className "board"] $ map (\t -> makeTile (PlaceTile m.selected t.id) t) m.board,
+      HE.div_ [HP.className "board"] $ map (\t -> makeTile (ToggleTile m.selected t.id) t) m.board,
       HE.div_ [HP.className "home-tiles"] $ map (\t -> makeTile (SelectTile t) t) $ DL.sortBy alpha m.home.tiles
     ],
     HE.div_ [HP.className "right-side"] [
       HE.div_ [HP.className "submit-button"] [
         HE.button_ [HP.className "submit"] [M.text "End game"]
       ],
-     HE.button_ [HP.className "submit"] [M.text "Pass"]
+     HE.button_ [HP.className "submit"] [M.text "Replace"]
     ]
   ]
   where
