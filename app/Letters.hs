@@ -1,10 +1,9 @@
-
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Letters where
 
-import Miso(MisoString)
+import Miso (MisoString)
 
 default (MisoString)
 
@@ -87,7 +86,7 @@ letterJ :: Int
 letterJ = 74
 
 displayLetter :: Int -> MisoString
-displayLetter =  \case
+displayLetter = \case
     69 -> "E"
     73 -> "I"
     65 -> "A"
