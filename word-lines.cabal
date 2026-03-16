@@ -42,7 +42,7 @@ executable app
   build-depends:
     base < 5, miso >= 1.9, mtl, random, unordered-containers, text, bytestring, file-embed
   other-modules:
-    Letters, Styles, Dictionary
+    Letters, Styles, Dictionary, Game
   hs-source-dirs:
     app
   default-language:

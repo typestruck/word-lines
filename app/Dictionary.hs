@@ -11,4 +11,4 @@ import Data.Text (Text)
 default (Text)
 
 englishDictionary ∷ HashSet Text
-englishDictionary = DS.fromList ["MOO", "MOOD", "MAD", "PI", "HI", "POST"]
+englishDictionary = DS.fromList ["TEAR", "ME", "MAN", "MEN", "EW", "MOO", "MOOD", "MAD", "PI", "HI", "POST", "RIB", "ACE", "AIM"]
