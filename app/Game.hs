@@ -287,7 +287,7 @@ viewModel m =
                 ]
             , HE.div_
                 [HP.className "submit-button"]
-                [ HE.button_ [HP.className "submit"] [M.text "End game"]
+                [ HE.button_ [HP.className "submit", HP.onClick NewGame] [M.text "End game"]
                 ]
             , HE.button_ [HP.className "submit", HP.onClick ReplaceTiles] [M.text "Replace"]
             ]
