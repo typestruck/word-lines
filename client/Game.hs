@@ -14,7 +14,6 @@ import Data.HashSet (HashSet)
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
 import Data.Text (Text)
-import Debug.Trace (traceShow)
 import Letters as L
 import Miso (App, Effect, MisoString, View, mount, styles)
 import Miso qualified as M

@@ -20,6 +20,17 @@ common warnings
   ghc-options:
     -funbox-strict-fields -O2 -ferror-spans -fspecialise-aggressively -Wall
 
+common server-options
+  if impl(ghcjs) || arch(javascript)
+    buildable: False
+
+common client-options
+  if impl(ghcjs) || arch(javascript) || arch(wasm32)
+    buildable: True
+  else
+    buildable: False
+
+
 common options
   if arch(wasm32)
     ghc-options:
@@ -34,16 +45,30 @@ common options
      ld-options:
        -sEXPORTED_RUNTIME_METHODS=HEAP8
 
-executable app
+executable server
   import:
-    options, warnings
+    server-options, options, warnings
+  main-is:
+    Main.hs
+  ghc-options:
+    -threaded -Wall -rtsopts -pgmL
+  build-depends:
+    base, servant, servant-server, directory, warp, wai, http-media, lucid, servant-lucid, time, string-conversions, bytestring, attoparsec, aeson, mtl, base-compat
+  hs-source-dirs:
+    server
+  default-language:
+    GHC2024
+
+executable client
+  import:
+   client-options, options, warnings
   main-is:
     Main.hs
   build-depends:
-    base < 5, miso >= 1.9, mtl, random, unordered-containers, text, bytestring, file-embed
+    base < 5, miso >= 1.9, mtl, random, unordered-containers, text
   other-modules:
     Letters, Styles, Dictionary, Game
   hs-source-dirs:
-    app
+    client
   default-language:
     GHC2024
