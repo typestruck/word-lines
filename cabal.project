@@ -10,5 +10,3 @@ source-repository-package
   tag: master
 
 flags: +template-haskell
-
-constraints:

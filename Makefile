@@ -11,7 +11,7 @@ repl: update
 	wasm32-wasi-cabal repl client -finteractive --repl-options='-fghci-browser -fghci-browser-port=8080'
 
 watch:
-	ghciwatch --after-startup-ghci :main --after-reload-ghci :main  --debounce 50ms --watch client/Main.hs --watch client/Letters.hs --watch client/Styles.hs --watch client/Dictionary.hs --watch client/Game.hs --command 'wasm32-wasi-cabal repl client -finteractive --repl-options="-fghci-browser -fghci-browser-port=8080"'
+	ghciwatch --after-startup-ghci :main --after-reload-ghci :main  --debounce 50ms --watch Client/Main.hs --watch Client/Styles.hs --watch Client/Dictionary.hs --watch Client/Game.hs --command 'wasm32-wasi-cabal repl client -finteractive --repl-options="-fghci-browser -fghci-browser-port=8080"'
 
 build:
 	wasm32-wasi-cabal build client

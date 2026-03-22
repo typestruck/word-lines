@@ -1,9 +1,3 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE ExtendedDefaultRules #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE UnicodeSyntax #-}
-
 module Game where
 
 import Control.Monad qualified as CM
@@ -14,12 +8,16 @@ import Data.HashSet (HashSet)
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
 import Data.Text (Text)
-import Letters as L
+import Game.Action (Action (..))
+import Game.Letters as GL
+import Game.Model (Model (..))
+import Game.Model qualified as GM
+import Game.Player (Player (..))
+import Game.Tile (Status (..), Tile (..), emptyTiles, size, startingTiles)
+import Game.Tile qualified as GT
+import Game.View qualified as GV
 import Miso (App, Effect, MisoString, View, mount, styles)
 import Miso qualified as M
-import Miso.Html.Element qualified as HE
-import Miso.Html.Event qualified as HP
-import Miso.Html.Property qualified as HP
 import Miso.State qualified as MS
 import Miso.String qualified as MSS
 import Styles (styleSheet)
@@ -27,63 +25,19 @@ import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
 
-default (MisoString)
-
-data Action
-    = NewGame
-    | SelectTile Tile
-    | ToggleTile (Maybe Tile) Int
-    | ReplaceTiles
-    deriving (Show, Eq)
-
-data Status = Valid | Invalid deriving (Show, Eq)
-
-data Tile = Tile {id ∷ Int, letter ∷ Int, status ∷ Status} deriving (Show, Eq)
-
-data Player = Player {tiles ∷ [Tile], score ∷ Int, replaced :: Int} deriving (Show, Eq)
-
-data Model = Model
-    { board ∷ [Tile]
-    , home ∷ Player
-    , away ∷ Player
-    , selected ∷ Maybe Tile
-    , generator ∷ StdGen
-    , dictionary ∷ HashSet Text
-    }
-
-instance Eq Model where
-    m == n = m.board == n.board && m.home == n.home && m.away == n.away && m.selected == n.selected
-
-size ∷ Int
-size = 13
-
-startingTiles ∷ Int
-startingTiles = 8
-
-maxReplaces :: Int
+maxReplaces ∷ Int
 maxReplaces = 2
 
 app ∷ HashSet Text → StdGen → App Model Action
-app dictionary generator = (M.component initialModel updateModel viewModel){mount = Just NewGame, styles = [styleSheet]}
-  where
-    initialModel = Model{board = emptyBoard, home = barePlayer, away = barePlayer, generator = generator, dictionary = dictionary, selected = Nothing}
+app dictionary generator = (M.component (GM.initModel generator dictionary) update GV.view){mount = Just NewGame, styles = [styleSheet]}
 
-barePlayer ∷ Player
-barePlayer = Player{tiles = [], replaced = 0, score = 0}
-
-bareTile ∷ Int → Int → Tile
-bareTile i l = Tile{id = i, letter = l, status = Invalid}
-
-emptyBoard ∷ [Tile]
-emptyBoard = zipWith bareTile [1 .. size * size] $ replicate (size * size) 0
-
-updateModel ∷ Action → Effect parent Model Action
-updateModel =
+update ∷ Action → Effect parent Model Action
+update =
     \case
         NewGame → newGame
         SelectTile t → selectTile t
         ToggleTile t i → toggleTile t i
-        ReplaceTiles -> replaceTiles
+        ReplaceTiles → replaceTiles
 
 newGame ∷ Effect parent Model Action
 newGame = do
@@ -93,7 +47,7 @@ newGame = do
     MS.modify $
         \m →
             m
-                { board = replaceAt 85 vowel emptyBoard
+                { board = replaceAt 85 vowel emptyTiles
                 , home = m.home{tiles = homeLetters}
                 , away = m.away{tiles = awayLetters}
                 }
@@ -114,8 +68,8 @@ newGame = do
                     else
                         letterO
 
-produceTiles :: (MonadState Model m) ⇒ m [Tile]
-produceTiles = zipWith bareTile [1 .. startingTiles] <$> randomLetters startingTiles
+produceTiles ∷ (MonadState Model m) ⇒ m [Tile]
+produceTiles = zipWith GT.bareTile [1 .. startingTiles] <$> randomLetters startingTiles
 
 replaceAt ∷ Int → Int → [Tile] → [Tile]
 replaceAt i letter = map f
@@ -131,18 +85,18 @@ toggleTile ∷ Maybe Tile → Int → Effect parent Model Action
 toggleTile t i = case t of
     Nothing → do
         model ← MS.get
-        let tile = tileAt model.board i
-        CM.when (not (isEmptyTile tile) && length model.home.tiles < startingTiles)
+        let tile = GT.tileAt model.board i
+        CM.when (not (GT.isEmptyTile tile) && length model.home.tiles < startingTiles)
             . MS.modify
             $ \m →
                 m
                     { board = replaceAt i 0 m.board
-                    , home = m.home{tiles = bareTile (length model.home.tiles + 1) tile.letter : m.home.tiles}
+                    , home = m.home{tiles = GT.bareTile (length model.home.tiles + 1) tile.letter : m.home.tiles}
                     }
     Just tile → do
         model ← MS.get
         CM.when (canPlaceTile model.board) $ do
-            let existing = (tileAt model.board i).letter
+            let existing = (GT.tileAt model.board i).letter
                 updatedBoard = checkBoard model.dictionary $ replaceAt i tile.letter model.board
                 updatedHome = filter (tile /=) model.home.tiles
             newLetters ← randomLetters $ startingTiles - length updatedHome
@@ -155,28 +109,28 @@ toggleTile t i = case t of
                             { score = makeScore updatedBoard
                             , tiles =
                                 if existing > 0 then
-                                    bareTile tile.id existing : updatedHome
+                                    GT.bareTile tile.id existing : updatedHome
                                 else
-                                    if (tileAt updatedBoard i).status == Valid then
-                                        map (bareTile tile.id) newLetters <> updatedHome
+                                    if (GT.tileAt updatedBoard i).status == Valid then
+                                        map (GT.bareTile tile.id) newLetters <> updatedHome
                                     else
                                         updatedHome
                             }
                     }
   where
-    canPlaceTile = not . all isEmptyTile . filter (\tl → tl.id == i + 1 || tl.id == i - 1 || tl.id == i - size || tl.id == i + size)
+    canPlaceTile = not . all GT.isEmptyTile . filter (\tl → tl.id == i + 1 || tl.id == i - 1 || tl.id == i - size || tl.id == i + size)
 
 makeScore ∷ [Tile] → Int
-makeScore = sum . map ms . filter (\t -> t.status == Valid)
+makeScore = sum . map ms . filter (\t → t.status == Valid)
   where
     ms t
-      | t.letter == letterA || t.letter == letterE || t.letter == letterI || t.letter == letterO || t.letter == letterU || t.letter == letterL || t.letter == letterN || t.letter == letterS || t.letter == letterT || t.letter == letterR = 1
-      | t.letter == letterD || t.letter == letterG = 2
-      | t.letter == letterB || t.letter == letterC || t.letter == letterM || t.letter == letterP = 3
-      | t.letter == letterF || t.letter == letterH || t.letter == letterV || t.letter == letterW || t.letter == letterY = 4
-      | t.letter == letterK = 5
-      | t.letter == letterJ || t.letter == letterX = 8
-      | t.letter == letterQ || t.letter == letterZ = 10
+        | t.letter == letterA || t.letter == letterE || t.letter == letterI || t.letter == letterO || t.letter == letterU || t.letter == letterL || t.letter == letterN || t.letter == letterS || t.letter == letterT || t.letter == letterR = 1
+        | t.letter == letterD || t.letter == letterG = 2
+        | t.letter == letterB || t.letter == letterC || t.letter == letterM || t.letter == letterP = 3
+        | t.letter == letterF || t.letter == letterH || t.letter == letterV || t.letter == letterW || t.letter == letterY = 4
+        | t.letter == letterK = 5
+        | t.letter == letterJ || t.letter == letterX = 8
+        | t.letter == letterQ || t.letter == letterZ = 10
 
 checkBoard ∷ HashSet Text → [Tile] → [Tile]
 checkBoard dictionary board = map check board
@@ -202,7 +156,7 @@ checkWords dictionary board = check words [] $ map (\[t] → t.id) straggles
 
     collectWords [] final running = if null running then final else running : final
     collectWords (f : rom) final running =
-        if isEmptyTile f || f.id `mod` size == 0 then
+        if GT.isEmptyTile f || f.id `mod` size == 0 then
             if null running then
                 collectWords rom final running
             else
@@ -212,15 +166,9 @@ checkWords dictionary board = check words [] $ map (\[t] → t.id) straggles
 
     check ∷ [[Tile]] → [Int] → [Int] → ([Int], [Int])
     check [] valid invalid = (valid, invalid)
-    check (w : ords) valid invalid = if DS.member (MSS.fromMisoString . MSS.concat $ map (L.displayLetter . letter) w) dictionary then check ords (add w valid) invalid else check ords valid (add w invalid)
+    check (w : ords) valid invalid = if DS.member (MSS.fromMisoString . MSS.concat $ map (GL.displayLetter . letter) w) dictionary then check ords (add w valid) invalid else check ords valid (add w invalid)
 
     add w list = map (\t → t.id) w <> list
-
-tileAt ∷ [Tile] → Int → Tile
-tileAt board i = board !! (i - 1)
-
-isEmptyTile ∷ Tile → Bool
-isEmptyTile t = t.letter == 0
 
 randomLetters ∷ (MonadState Model m) ⇒ Int → m [Int]
 randomLetters howMany = do
@@ -262,36 +210,9 @@ randomLetters howMany = do
         | d >= 0.753512963 && d <= 0.75471501 = letterJ
         | otherwise = error "missing letter range"
 
-replaceTiles :: Effect parent Model Action
+replaceTiles ∷ Effect parent Model Action
 replaceTiles = do
-    model <- MS.get
+    model ← MS.get
     CM.when (model.home.replaced < maxReplaces) $ do
-        tiles <- produceTiles
-        MS.modify $ \m -> m { home = m.home { tiles = tiles, replaced = m.home.replaced + 1 }}
-
-viewModel ∷ Model → View Model Action
-viewModel m =
-    HE.main_
-        []
-        [ HE.div_
-            [HP.className "left-side"]
-            [ HE.div_ [HP.className "board"] $ map (\t → makeTile (ToggleTile m.selected t.id) t) m.board
-            , HE.div_ [HP.className "home-tiles"] $ map (\t → makeTile (SelectTile t) t) $ DL.sortBy alpha m.home.tiles
-            ]
-        , HE.div_
-            [HP.className "right-side"]
-            [ HE.div_
-                [HP.className "submit-button"]
-                [ HE.label_ [] [M.text $ "Score: " <> MSS.pack (show m.home.score)]
-                ]
-            , HE.div_
-                [HP.className "submit-button"]
-                [ HE.button_ [HP.className "submit", HP.onClick NewGame] [M.text "End game"]
-                ]
-            , HE.button_ [HP.className "submit", HP.onClick ReplaceTiles] [M.text "Replace"]
-            ]
-        ]
-  where
-    alpha t u = compare t.letter u.letter
-
-    makeTile action t = HE.div_ [HP.classList_ [("tile", True), ("valid", t.status == Valid)], HP.onClick action] [M.text $ if isEmptyTile t then "" else L.displayLetter t.letter]
+        tiles ← produceTiles
+        MS.modify $ \m → m{home = m.home{tiles = tiles, replaced = m.home.replaced + 1}}

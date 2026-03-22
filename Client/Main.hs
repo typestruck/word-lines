@@ -23,7 +23,7 @@ main = do
 #else
 main = do
     generator ← MR.newStdGen
-    M.startApp defaultEvents $ G.app englishDictionary generator
+    M.prerender defaultEvents $ G.app englishDictionary generator
 #endif
 
 

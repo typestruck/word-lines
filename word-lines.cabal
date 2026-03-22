@@ -30,8 +30,9 @@ common client-options
   else
     buildable: False
 
-
 common options
+  default-extensions:
+    UnicodeSyntax, OverloadedRecordDot
   if arch(wasm32)
     ghc-options:
       -no-hs-main -optl-mexec-model=reactor "-optl-Wl,--export=hs_start"
@@ -45,30 +46,34 @@ common options
      ld-options:
        -sEXPORTED_RUNTIME_METHODS=HEAP8
 
+common common-modules
+  other-modules:
+    Game.Model, Game.View, Game.Tile, Game.Letters, Game.Action, Game.Player
+
 executable server
   import:
-    server-options, options, warnings
+    server-options, options, warnings, common-modules
   main-is:
     Main.hs
   ghc-options:
     -threaded -Wall -rtsopts -pgmL
   build-depends:
-    base, servant, servant-server, directory, warp, wai, http-media, lucid, servant-lucid, time, string-conversions, bytestring, attoparsec, aeson, mtl, base-compat
+    base, servant, miso >= 1.9,random, text, unordered-containers, servant-server, warp, wai, http-media, string-conversions, bytestring, aeson
   hs-source-dirs:
-    server
+    Shared, Server
   default-language:
     GHC2024
 
 executable client
   import:
-   client-options, options, warnings
+   client-options, options, warnings, common-modules
   main-is:
     Main.hs
   build-depends:
     base < 5, miso >= 1.9, mtl, random, unordered-containers, text
   other-modules:
-    Letters, Styles, Dictionary, Game
+    Styles, Dictionary, Game
   hs-source-dirs:
-    client
+    Client, Shared
   default-language:
     GHC2024
