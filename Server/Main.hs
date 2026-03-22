@@ -17,7 +17,6 @@ import Game.View qualified as GV
 import Miso.Html.Render (ToHtml)
 import Miso.Html.Render qualified as MHR
 import Network.HTTP.Media ((//), (/:))
-import Network.Wai
 import Network.Wai.Handler.Warp qualified as W
 import Servant
 import System.Random qualified as SR
@@ -30,25 +29,27 @@ instance Accept Html where
     contentType _ = "text" // "html" /: ("charset", "utf-8")
 
 instance (ToHtml a) ⇒ MimeRender Html a where
-    mimeRender _ = MHR.toHtml
+    mimeRender _ = fullPage .  MHR.toHtml
+        where fullPage bs = "<!doctype html><html lang=en><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta charset=utf-8><title>word lines</title></head><body>" <> bs <> "</body><script src='static/index.js' type='module'></script></html>"
 
 instance ToHtml Home where
     toHtml (Home model) = MHR.toHtml $ GV.view model
 
-type WordLinesApi = Get '[Html] Home
+type WordLinesApi = Get '[Html] Home :<|> "static" :> Raw
 
-server ∷ Server WordLinesApi
-server = do
-    generator ← CMIC.liftIO SR.newStdGen
-    pure . Home $ GM.initModel generator DS.empty
+handlers :: Server WordLinesApi
+handlers = homeHandler :<|> staticHandler
+    where
+    homeHandler = do
+        generator ← CMIC.liftIO SR.newStdGen
+        pure . Home $ GM.initModel generator DS.empty
 
-wordLinesApi ∷ Proxy WordLinesApi
-wordLinesApi = Proxy
+    staticHandler = serveDirectoryWebApp "public"
 
-app1 ∷ Application
-app1 = serve wordLinesApi server
+app ∷ Application
+app = serve (Proxy :: Proxy WordLinesApi) handlers
 
 main ∷ IO ()
 main = do
     putStrLn "Server running at http://localhost:8081"
-    W.run 8081 app1
+    W.run 8081 app

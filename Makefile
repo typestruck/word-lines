@@ -20,6 +20,8 @@ build:
 	$(eval my_wasm=$(shell wasm32-wasi-cabal list-bin client | tail -n 1))
 	$(shell wasm32-wasi-ghc --print-libdir)/post-link.mjs --input $(my_wasm) --output public/ghc_wasm_jsffi.js
 	cp -v $(my_wasm) public/
+	mv public/client.wasm public/app.wasm
+	sed -i -e 's/\/app/.\/app/g' public/index.js
 
 optim:
 	wasm-opt -all -O2 public/app.wasm -o public/app.wasm
