@@ -22,7 +22,7 @@ build:
 	cp -v $(my_wasm) public/
 	mv public/client.wasm public/app.wasm
 	sed -i -e 's/\/app/static\/app/g' public/index.js
-	cp Client/dictionary.js public/dictionary.js
+	cp Client/dictionary public/dictionary.js
 
 optim:
 	wasm-opt -all -O2 public/app.wasm -o public/app.wasm
