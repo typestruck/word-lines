@@ -38,7 +38,7 @@ common options
 
 common common-modules
   other-modules:
-    Game.Model, Game.View, Game.Tile, Game.Letters, Game.Action, Game.Player
+    Game.Model, Game.View, Game.Tile, Game.Letters, Game.Action, Game.Player, Game.Mode
 
 executable server
   import:

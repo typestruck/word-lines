@@ -28,6 +28,7 @@ import System.Random qualified as MR
 import Prelude hiding (words)
 import Miso.String(MisoString)
 import Debug.Trace (traceShow)
+import Game.Mode (Mode(Solo, NotPlaying))
 
 default(MisoString)
 
@@ -35,7 +36,7 @@ maxReplaces ∷ Int
 maxReplaces = 2
 
 app ∷ [JS] -> StdGen → App Model Action
-app scripts generator = (M.component (GM.initModel generator) update GV.view){mount = Just NewGame, scripts = scripts, styles = [styleSheet]}
+app scripts generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = [styleSheet]}
 
 update ∷ Action → Effect parent Model Action
 update =
@@ -44,18 +45,18 @@ update =
         SelectTile t → selectTile t
         ToggleTile t i → toggleTile t i
         ReplaceTiles → replaceTiles
+        EndGame -> endGame
 
 newGame ∷ Effect parent Model Action
 newGame = do
     homeLetters ← produceTiles
-    awayLetters ← produceTiles
     vowel ← initialVowel
     MS.modify $
         \m →
             m
                 { board = replaceAt 85 vowel emptyTiles
                 , home = m.home{tiles = homeLetters}
-                , away = m.away{tiles = awayLetters}
+                , mode = Solo
                 }
   where
     initialVowel = do
@@ -96,7 +97,7 @@ toggleTile t i = case t of
             . MS.modify
             $ \m →
                 m
-                    { board = replaceAt i 0 m.board
+                    { board = checkBoard $ replaceAt i 0 m.board
                     , home = m.home{tiles = GT.bareTile (length model.home.tiles + 1) tile.letter : m.home.tiles}
                     }
     Just tile → do
@@ -148,7 +149,7 @@ checkBoard board = map check board
         | otherwise = t
 
 #ifdef WASM
-foreign import javascript unsafe "return window.isValidWordLine($1);" isValidWord :: MisoString -> Bool
+foreign import javascript "return window.isValidWordLine($1);" isValidWord :: MisoString -> Bool
 #else
 isValidWord :: MisoString -> Bool
 isValidWord _ = True
@@ -229,3 +230,6 @@ replaceTiles = do
     CM.when (model.home.replaced < maxReplaces) $ do
         tiles ← produceTiles
         MS.modify $ \m → m{home = m.home{tiles = tiles, replaced = m.home.replaced + 1}}
+
+endGame :: Effect parent Model Action
+endGame = MS.modify $ \m -> m { mode = NotPlaying }

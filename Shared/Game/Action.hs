@@ -8,4 +8,5 @@ data Action
     | SelectTile Tile
     | ToggleTile (Maybe Tile) Int
     | ReplaceTiles
+    | EndGame
     deriving (Show, Eq)
