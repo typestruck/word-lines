@@ -1,13 +1,15 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Game where
 
 import Control.Monad qualified as CM
 import Control.Monad.RWS (MonadState)
 import Data.Bifunctor qualified as DB
 import Data.HashMap.Strict qualified as DM
-import Data.HashSet (HashSet)
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
-import Data.Text (Text)
 import Game.Action (Action (..))
 import Game.Letters as GL
 import Game.Model (Model (..))
@@ -16,7 +18,7 @@ import Game.Player (Player (..))
 import Game.Tile (Status (..), Tile (..), emptyTiles, size, startingTiles)
 import Game.Tile qualified as GT
 import Game.View qualified as GV
-import Miso (App, Effect, MisoString, View, mount, styles)
+import Miso (App, Effect, scripts, mount, styles, JS)
 import Miso qualified as M
 import Miso.State qualified as MS
 import Miso.String qualified as MSS
@@ -24,12 +26,16 @@ import Styles (styleSheet)
 import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
+import Miso.String(MisoString)
+import Debug.Trace (traceShow)
+
+default(MisoString)
 
 maxReplaces ∷ Int
 maxReplaces = 2
 
-app ∷ HashSet Text → StdGen → App Model Action
-app dictionary generator = (M.component (GM.initModel generator dictionary) update GV.view){mount = Just NewGame, styles = [styleSheet]}
+app ∷ [JS] -> StdGen → App Model Action
+app scripts generator = (M.component (GM.initModel generator) update GV.view){mount = Just NewGame, scripts = scripts, styles = [styleSheet]}
 
 update ∷ Action → Effect parent Model Action
 update =
@@ -97,7 +103,7 @@ toggleTile t i = case t of
         model ← MS.get
         CM.when (canPlaceTile model.board) $ do
             let existing = (GT.tileAt model.board i).letter
-                updatedBoard = checkBoard model.dictionary $ replaceAt i tile.letter model.board
+                updatedBoard = checkBoard $ replaceAt i tile.letter model.board
                 updatedHome = filter (tile /=) model.home.tiles
             newLetters ← randomLetters $ startingTiles - length updatedHome
             MS.modify $ \m →
@@ -132,17 +138,24 @@ makeScore = sum . map ms . filter (\t → t.status == Valid)
         | t.letter == letterJ || t.letter == letterX = 8
         | t.letter == letterQ || t.letter == letterZ = 10
 
-checkBoard ∷ HashSet Text → [Tile] → [Tile]
-checkBoard dictionary board = map check board
+checkBoard ∷ [Tile] → [Tile]
+checkBoard board = map check board
   where
-    (valid, invalid) = DB.bimap DS.fromList DS.fromList $ checkWords dictionary board
+    (valid, invalid) = DB.bimap DS.fromList DS.fromList $ checkWords board
     check t
         | DS.member t.id valid = t{status = Valid}
         | DS.member t.id invalid = t{status = Invalid}
         | otherwise = t
 
-checkWords ∷ HashSet Text → [Tile] → ([Int], [Int])
-checkWords dictionary board = check words [] $ map (\[t] → t.id) straggles
+#ifdef WASM
+foreign import javascript unsafe "return window.isValidWordLine($1);" isValidWord :: MisoString -> Bool
+#else
+isValidWord :: MisoString -> Bool
+isValidWord _ = True
+#endif
+
+checkWords ∷ [Tile] → ([Int], [Int])
+checkWords board = check words [] $ map (\[t] → t.id) straggles
   where
     (words, straggles) =
         let r = collectWords rows [] []
@@ -166,7 +179,7 @@ checkWords dictionary board = check words [] $ map (\[t] → t.id) straggles
 
     check ∷ [[Tile]] → [Int] → [Int] → ([Int], [Int])
     check [] valid invalid = (valid, invalid)
-    check (w : ords) valid invalid = if DS.member (MSS.fromMisoString . MSS.concat $ map (GL.displayLetter . letter) w) dictionary then check ords (add w valid) invalid else check ords valid (add w invalid)
+    check (w : ords) valid invalid = if isValidWord (MSS.concat $ map (GL.displayLetter . letter) w) then check ords (add w valid) invalid else check ords valid (add w invalid)
 
     add w list = map (\t → t.id) w <> list
 

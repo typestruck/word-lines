@@ -11,7 +11,7 @@ repl: update
 	wasm32-wasi-cabal repl client -finteractive --repl-options='-fghci-browser -fghci-browser-port=8080'
 
 watch:
-	ghciwatch --after-startup-ghci :main --after-reload-ghci :main  --debounce 50ms --watch Client/Main.hs --watch Client/Styles.hs --watch Client/Dictionary.hs --watch Client/Game.hs --command 'wasm32-wasi-cabal repl client -finteractive --repl-options="-fghci-browser -fghci-browser-port=8080"'
+	ghciwatch --after-startup-ghci :main --after-reload-ghci :main  --debounce 50ms --watch Client/Main.hs --watch Client/Styles.hs  --watch Client/Game.hs --command 'wasm32-wasi-cabal repl client -finteractive --repl-options="-fghci-browser -fghci-browser-port=8080"'
 
 build:
 	wasm32-wasi-cabal build client
@@ -21,7 +21,8 @@ build:
 	$(shell wasm32-wasi-ghc --print-libdir)/post-link.mjs --input $(my_wasm) --output public/ghc_wasm_jsffi.js
 	cp -v $(my_wasm) public/
 	mv public/client.wasm public/app.wasm
-	sed -i -e 's/\/app/.\/app/g' public/index.js
+	sed -i -e 's/\/app/static\/app/g' public/index.js
+	cp Client/dictionary.js public/dictionary.js
 
 optim:
 	wasm-opt -all -O2 public/app.wasm -o public/app.wasm

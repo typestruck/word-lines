@@ -1,13 +1,12 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE UnicodeSyntax #-}
 
 module Main where
 
-import Dictionary (englishDictionary)
 import Miso qualified as M
+import Miso.String qualified as MS
 import qualified Game as G
 import System.Random qualified as MR
-import Miso (defaultEvents)
+import Miso (defaultEvents, JS (Src), MisoString)
 
 #ifdef WASM
 #ifndef INTERACTIVE
@@ -19,11 +18,11 @@ main ∷ IO ()
 #ifdef INTERACTIVE
 main = do
     generator ← MR.newStdGen
-    M.reload defaultEvents $ G.app englishDictionary generator
+    M.reload defaultEvents $ G.app [Src (MS.pack "http://localhost:8081/static/dictionary.js") False] generator
 #else
 main = do
     generator ← MR.newStdGen
-    M.prerender defaultEvents $ G.app englishDictionary generator
+    M.prerender defaultEvents $ G.app [] generator
 #endif
 
 

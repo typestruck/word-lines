@@ -20,16 +20,6 @@ common warnings
   ghc-options:
     -funbox-strict-fields -O2 -ferror-spans -fspecialise-aggressively -Wall
 
-common server-options
-  if impl(ghcjs) || arch(javascript)
-    buildable: False
-
-common client-options
-  if impl(ghcjs) || arch(javascript) || arch(wasm32)
-    buildable: True
-  else
-    buildable: False
-
 common options
   default-extensions:
     UnicodeSyntax, OverloadedRecordDot
@@ -52,13 +42,13 @@ common common-modules
 
 executable server
   import:
-    server-options, options, warnings, common-modules
+    options, warnings, common-modules
   main-is:
     Main.hs
   ghc-options:
     -threaded -Wall -rtsopts -pgmL
   build-depends:
-    base, servant, miso >= 1.9,random, text, unordered-containers, servant-server, warp, wai, http-media, string-conversions, bytestring, aeson
+    base, servant, miso >= 1.9,random, text, servant-server, warp, wai, http-media, string-conversions, bytestring, aeson
   hs-source-dirs:
     Shared, Server
   default-language:
@@ -66,13 +56,13 @@ executable server
 
 executable client
   import:
-   client-options, options, warnings, common-modules
+    options, warnings, common-modules
   main-is:
     Main.hs
   build-depends:
     base < 5, miso >= 1.9, mtl, random, unordered-containers, text
   other-modules:
-    Styles, Dictionary, Game
+    Styles, Game
   hs-source-dirs:
     Client, Shared
   default-language:
