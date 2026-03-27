@@ -31,6 +31,7 @@ import Servant (
  )
 import Servant qualified as S
 import System.Random qualified as SR
+import Debug.Trace (trace)
 
 newtype Home = Home Model
 
@@ -42,7 +43,7 @@ instance Accept Html where
 instance (ToHtml a) ⇒ MimeRender Html a where
     mimeRender _ = fullPage . MHR.toHtml
       where
-        fullPage bs = "<!doctype html><html lang=en><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta charset=utf-8><title>word lines</title><script src='static/dictionary.js' async></script></head><body>" <> bs <> "</body><script src='static/index.js' type='module'></script></html>"
+        fullPage bs = "<!doctype html><html lang=en><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta charset=utf-8><title>word lines</title><link rel='stylesheet' href='static/styles.css'/><script src='static/dictionary.js' async></script></head><body>" <> bs <> "</body><script src='static/index.js' type='module'></script></html>"
 
 instance ToHtml Home where
     toHtml (Home model) = MHR.toHtml $ GV.view model

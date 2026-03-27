@@ -62,7 +62,7 @@ executable client
   build-depends:
     base < 5, miso >= 1.9, mtl, random, unordered-containers, text
   other-modules:
-    Styles, Game
+    Game
   hs-source-dirs:
     Client, Shared
   default-language:

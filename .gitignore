@@ -13,7 +13,7 @@ cabal-dev
 .cabal-sandbox/
 public/
 cabal.sandbox.config
-static/
+node_modules/
 *.prof
 *.aux
 *.hp

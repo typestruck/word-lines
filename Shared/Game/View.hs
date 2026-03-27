@@ -22,40 +22,43 @@ default (MisoString)
 
 view ∷ Model → View Model Action
 view model =
-    HE.main_ [] $ case model.mode of
+    HE.main_ [HP.className "dark:bg-gray-800 dark:text-white min-h-full"] $ case model.mode of
         NotPlaying → notPlaying model
         Solo → solo model
 
 notPlaying ∷ Model → [View Model Action]
 notPlaying _ =
     [ HE.div_
-        []
-        [ HE.h1_ [] [M.text "word-lines"]
-        , HE.div_ [] [HE.button_ [HP.onClick NewGame] [M.text "Play solo"]]
+        [HP.className "flex flex-col items-center pt-30"]
+        [ HE.h1_ [HP.className "text-4xl font-bold"] [M.text "word lines"]
+        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play solo"]
         ]
     ]
 
 solo ∷ Model → [View Model Action]
 solo model =
     [ HE.div_
-        [HP.className "left-side"]
-        [ HE.div_ [HP.className "board"] $ map (\t → makeTile (ToggleTile model.selected t.id) t) model.board
-        , HE.div_ [HP.className "home-tiles"] $ map (\t → makeTile (SelectTile t) t) $ DL.sortBy alpha model.home.tiles
-        ]
-    , HE.div_
-        [HP.className "right-side"]
+        [HP.className "flex"]
         [ HE.div_
-            [HP.className "submit-button"]
-            [ HE.label_ [] [M.text $ "Score: " <> MSS.pack (show model.home.score)]
+            [HP.className "flex flex-col m-20"]
+            [ HE.div_ [HP.className "border-1 text- dark:border-neutral-300 dark:bg-white grid grid-cols-[repeat(13,_60px)] grid-rows-[repeat(13,_60px)] gap-1"] $ map (\t → makeTile (ToggleTile model.selected t.id) t) model.board
+            , HE.div_ [HP.className "border-1 dark:border-neutral-300 mt-20 dark:bg-white grid grid-cols-[repeat(13,_60px)] grid-rows-[repeat(1,_60px)] gap-1"] $ map (\t → makeTile (SelectTile t) t) $ DL.sortBy alpha model.home.tiles
             ]
         , HE.div_
-            [HP.className "submit-button"]
-            [ HE.button_ [HP.className "submit", HP.onClick EndGame] [M.text "End game"]
+            [HP.className "flex flex-col"]
+            [ HE.div_
+                [HP.className "submit-button"]
+                [ HE.label_ [] [M.text $ "Score: " <> MSS.pack (show model.home.score)]
+                ]
+            , HE.div_
+                [HP.className "submit-button"]
+                [ HE.button_ [HP.className "submit", HP.onClick EndGame] [M.text "End game"]
+                ]
+            , HE.button_ [HP.className "submit", HP.onClick ReplaceTiles] [M.text "Replace"]
             ]
-        , HE.button_ [HP.className "submit", HP.onClick ReplaceTiles] [M.text "Replace"]
         ]
     ]
   where
     alpha t u = compare t.letter u.letter
 
-    makeTile action t = HE.div_ [HP.classList_ [("tile", True), ("valid", t.status == Valid)], HP.onClick action] [M.text $ if GT.isEmptyTile t then "" else GL.displayLetter t.letter]
+    makeTile action t = HE.div_ [HP.classList_ [("text-2xl dark:bg-gray-800 text-red-50", True), ("text-inherit", t.status == Valid)], HP.onClick action] [M.text $ if GT.isEmptyTile t then "" else GL.displayLetter t.letter]
