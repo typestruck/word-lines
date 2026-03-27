@@ -18,11 +18,10 @@ import Game.Player (Player (..))
 import Game.Tile (Status (..), Tile (..), emptyTiles, size, startingTiles)
 import Game.Tile qualified as GT
 import Game.View qualified as GV
-import Miso (App, Effect, scripts, mount, styles, JS)
+import Miso (App, Effect, scripts, mount, styles, JS, CSS)
 import Miso qualified as M
 import Miso.State qualified as MS
 import Miso.String qualified as MSS
-import Styles (styleSheet)
 import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
@@ -35,8 +34,8 @@ default(MisoString)
 maxReplaces ∷ Int
 maxReplaces = 2
 
-app ∷ [JS] -> StdGen → App Model Action
-app scripts generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = [styleSheet]}
+app ∷ [JS] -> [CSS] -> StdGen → App Model Action
+app scripts styles generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = styles}
 
 update ∷ Action → Effect parent Model Action
 update =
