@@ -41,24 +41,21 @@ solo model =
         [HP.className "flex"]
         [ HE.div_
             [HP.className "flex flex-col m-20"]
-            [ HE.div_ [HP.className "border-1 text- dark:border-neutral-300 dark:bg-white grid grid-cols-[repeat(13,_60px)] grid-rows-[repeat(13,_60px)] gap-1"] $ map (\t → makeTile (ToggleTile model.selected t.id) t) model.board
-            , HE.div_ [HP.className "border-1 dark:border-neutral-300 mt-20 dark:bg-white grid grid-cols-[repeat(13,_60px)] grid-rows-[repeat(1,_60px)] gap-1"] $ map (\t → makeTile (SelectTile t) t) $ DL.sortBy alpha model.home.tiles
+            [ HE.div_ [HP.className "border-1 text- dark:border-neutral-400 dark:bg-neutral-400 grid grid-cols-[repeat(13,_60px)] grid-rows-[repeat(13,_60px)] gap-1"] $ map (\t → makeTile (ToggleTile model.selected t.id) t) model.board
+            , HE.div_
+                [HP.className "flex items-center"]
+                [ HE.div_ [HP.className "border-1 dark:border-neutral-400 mt-20 dark:bg-neutral-400 grid grid-cols-[repeat(8,_60px)] grid-rows-[repeat(1,_60px)] gap-1 w-fit"] $ map (\t → makeTile (SelectTile t) t) $ DL.sortBy alpha model.home.tiles
+                , HE.div_ [HP.className "ml-auto"] [HE.button_ [HP.className "p-10 pl-15 pr-15 bg-green-600 mt-15 rounded-sm", HP.onClick ReplaceTiles] [M.text "Replace tiles"]]
+                ]
             ]
         , HE.div_
-            [HP.className "flex flex-col"]
-            [ HE.div_
-                [HP.className "submit-button"]
-                [ HE.label_ [] [M.text $ "Score: " <> MSS.pack (show model.home.score)]
-                ]
-            , HE.div_
-                [HP.className "submit-button"]
-                [ HE.button_ [HP.className "submit", HP.onClick EndGame] [M.text "End game"]
-                ]
-            , HE.button_ [HP.className "submit", HP.onClick ReplaceTiles] [M.text "Replace"]
+            [HP.className "flex flex-col justify-end m-10 mb-100"]
+            [ HE.label_ [] [M.text $ "Score: " <> MSS.pack (show model.home.score)]
+            , HE.button_ [HP.className "p-10 pl-15 pr-15 bg-green-600 mt-15 rounded-sm", HP.onClick EndGame] [M.text "End game"]
             ]
         ]
     ]
   where
     alpha t u = compare t.letter u.letter
 
-    makeTile action t = HE.div_ [HP.classList_ [("text-2xl dark:bg-gray-800 text-red-50", True), ("text-inherit", t.status == Valid)], HP.onClick action] [M.text $ if GT.isEmptyTile t then "" else GL.displayLetter t.letter]
+    makeTile action t = HE.div_ [HP.classList_ [("text-2xl font-bold dark:bg-gray-800 flex justify-center items-center", True), ("text-red-500", t.status == Invalid && action /= SelectTile t)], HP.onClick action] [M.text $ if GT.isEmptyTile t then "" else GL.displayLetter t.letter]
