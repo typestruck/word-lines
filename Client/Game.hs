@@ -53,7 +53,7 @@ newGame = do
     MS.modify $
         \m →
             m
-                { board = replaceAt 85 vowel emptyTiles
+                { board = GT.replaceAt 85 vowel emptyTiles
                 , home = m.home{tiles = homeLetters}
                 , mode = Solo
                 }
@@ -77,13 +77,6 @@ newGame = do
 produceTiles ∷ (MonadState Model m) ⇒ m [Tile]
 produceTiles = zipWith GT.bareTile [1 .. startingTiles] <$> randomLetters startingTiles
 
-replaceAt ∷ Int → Int → [Tile] → [Tile]
-replaceAt i letter = map f
-  where
-    f t
-        | t.id == i = Tile{id = i, letter, status = Invalid}
-        | otherwise = t
-
 selectTile ∷ Tile → Effect parent Model Action
 selectTile t = MS.modify $ \m → m{selected = Just t}
 
@@ -96,14 +89,14 @@ toggleTile t i = case t of
             . MS.modify
             $ \m →
                 m
-                    { board = checkBoard $ replaceAt i 0 m.board
+                    { board = checkBoard $ GT.replaceAt i 0 m.board
                     , home = m.home{tiles = GT.bareTile (length model.home.tiles + 1) tile.letter : m.home.tiles}
                     }
     Just tile → do
         model ← MS.get
         CM.when (canPlaceTile model.board) $ do
             let existing = (GT.tileAt model.board i).letter
-                updatedBoard = checkBoard $ replaceAt i tile.letter model.board
+                updatedBoard = checkBoard $ GT.replaceAt i tile.letter model.board
                 updatedHome = filter (tile /=) model.home.tiles
             newLetters ← randomLetters $ startingTiles - length updatedHome
             MS.modify $ \m →

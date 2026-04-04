@@ -7,85 +7,87 @@ import Miso (MisoString)
 
 default (MisoString)
 
-letterE ∷ Int
+type Letter = Int
+
+letterE :: Letter
 letterE = 69
 
-letterI ∷ Int
+letterI :: Letter
 letterI = 73
 
-letterA ∷ Int
+letterA :: Letter
 letterA = 65
 
-letterO ∷ Int
+letterO :: Letter
 letterO = 79
 
-letterR ∷ Int
+letterR :: Letter
 letterR = 82
 
-letterN ∷ Int
+letterN :: Letter
 letterN = 78
 
-letterT ∷ Int
+letterT :: Letter
 letterT = 84
 
-letterS ∷ Int
+letterS :: Letter
 letterS = 83
 
-letterL ∷ Int
+letterL :: Letter
 letterL = 76
 
-letterC ∷ Int
+letterC :: Letter
 letterC = 67
 
-letterU ∷ Int
+letterU :: Letter
 letterU = 85
 
-letterP ∷ Int
+letterP :: Letter
 letterP = 80
 
-letterM ∷ Int
+letterM :: Letter
 letterM = 77
 
-letterD ∷ Int
+letterD :: Letter
 letterD = 68
 
-letterH ∷ Int
+letterH :: Letter
 letterH = 72
 
-letterY ∷ Int
+letterY :: Letter
 letterY = 89
 
-letterG ∷ Int
+letterG :: Letter
 letterG = 71
 
-letterB ∷ Int
+letterB :: Letter
 letterB = 66
 
-letterF ∷ Int
+letterF :: Letter
 letterF = 70
 
-letterV ∷ Int
+letterV :: Letter
 letterV = 86
 
-letterK ∷ Int
+letterK :: Letter
 letterK = 75
 
-letterW ∷ Int
+letterW :: Letter
 letterW = 87
 
-letterZ ∷ Int
+letterZ :: Letter
 letterZ = 90
 
-letterX ∷ Int
+letterX :: Letter
 letterX = 88
 
-letterQ ∷ Int
+letterQ :: Letter
 letterQ = 81
 
-letterJ ∷ Int
+letterJ :: Letter
 letterJ = 74
 
-displayLetter ∷ Int → MisoString
+displayLetter :: Letter → MisoString
 displayLetter = \case
     69 → "E"
     73 → "I"

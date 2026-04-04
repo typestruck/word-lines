@@ -67,3 +67,18 @@ executable client
     Client, Shared
   default-language:
     GHC2024
+
+-- need to be like this instead of depending on library because otherwise it breaks js code generation
+executable test
+  import:
+    options, warnings, common-modules
+  main-is:
+    Main.hs
+  build-depends:
+    base < 5, miso >= 1.9, mtl, random, unordered-containers, text, hedgehog
+  other-modules:
+    Game
+  hs-source-dirs:
+    Test, Client, Shared
+  default-language:
+    GHC2024
