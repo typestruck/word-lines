@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Game where
 
@@ -214,7 +213,6 @@ randomLetters howMany = do
         | d >= 0.644002295 && d <= 0.647066783 = letterX
         | d >= 0.681059311 && d <= 0.682697736 = letterQ
         | d >= 0.753512963 && d <= 0.75471501 = letterJ
-        | otherwise = error "missing letter range!"
 
 replaceTiles ∷ Effect parent Model Action
 replaceTiles = do

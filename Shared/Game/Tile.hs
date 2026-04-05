@@ -1,9 +1,9 @@
 module Game.Tile where
 import Game.Letters (Letter)
 
-data Status = Valid | Invalid deriving (Show, Eq)
+data Status = Valid | Invalid deriving (Show, Eq, Ord)
 
-data Tile = Tile {id ∷ Int, letter ∷ Int, status ∷ Status} deriving (Show, Eq)
+data Tile = Tile {id ∷ Int, letter ∷ Int, status ∷ Status} deriving (Show, Eq, Ord)
 
 size ∷ Int
 size = 13
