@@ -15,7 +15,7 @@ tile ∷ Gen Tile
 tile = GT.bareTile <$> HG.int (HR.linear 1 size) <*> HG.int (HR.linear letterA letterZ)
 
 prop_single_tiles_are_not_valid_words ∷ Property
-prop_single_tiles_are_not_valid_words = withTests 100 . property $ do
+prop_single_tiles_are_not_valid_words = withTests 1000 . property $ do
     t ← forAll tile
     G.checkWords (GT.replaceAt t.id t.letter emptyTiles) === ([], [t.id])
 

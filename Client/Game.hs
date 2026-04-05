@@ -10,31 +10,31 @@ import Data.Bifunctor qualified as DB
 import Data.HashMap.Strict qualified as DM
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
+import Debug.Trace (traceShow)
 import Game.Action (Action (..))
 import Game.Letters as GL
+import Game.Mode (Mode (NotPlaying, Solo))
 import Game.Model (Model (..))
 import Game.Model qualified as GM
 import Game.Player (Player (..))
 import Game.Tile (Status (..), Tile (..), emptyTiles, size, startingTiles)
 import Game.Tile qualified as GT
 import Game.View qualified as GV
-import Miso (App, Effect, scripts, mount, styles, JS, CSS)
+import Miso (App, CSS, Effect, JS, scripts, styles)
 import Miso qualified as M
 import Miso.State qualified as MS
+import Miso.String (MisoString)
 import Miso.String qualified as MSS
 import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
-import Miso.String(MisoString)
-import Debug.Trace (traceShow)
-import Game.Mode (Mode(Solo, NotPlaying))
 
-default(MisoString)
+default (MisoString)
 
 maxReplaces ∷ Int
 maxReplaces = 2
 
-app ∷ [JS] -> [CSS] -> StdGen → App Model Action
+app ∷ [JS] → [CSS] → StdGen → App Model Action
 app scripts styles generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = styles}
 
 update ∷ Action → Effect parent Model Action
@@ -44,7 +44,7 @@ update =
         SelectTile t → selectTile t
         ToggleTile t i → toggleTile t i
         ReplaceTiles → replaceTiles
-        EndGame -> endGame
+        EndGame → endGame
 
 newGame ∷ Effect parent Model Action
 newGame = do
@@ -151,30 +151,30 @@ checkWords ∷ [Tile] → ([Int], [Int])
 checkWords board = check words [] $ map (\[t] → t.id) straggles
   where
     (words, straggles) =
-        let r = collectWords rows [] []
-            c = collectWords columns [] []
+        let r = collectWords rows [] [] 1
+            c = collectWords columns [] [] 1
          in (filter ((1 <) . length) (r <> c), filter ((1 ==) . length) r `DL.intersect` filter ((1 ==) . length) c)
 
     rows = board
     columns = reorient board . DM.fromList . zip [0 .. size - 1] $ replicate size [] -- size - 1 because size % size = 0
     reorient [] running = concat $ DM.elems running
-    reorient (t : iles) running = reorient iles (DM.adjust (++ [t]) (t.id `mod` size) running)
+    reorient (t : iles) running = reorient iles $ DM.adjust (++ [t]) (t.id `mod` size) running
 
-    collectWords [] final running = if null running then final else running : final
-    collectWords (f : rom) final running =
-        if GT.isEmptyTile f || f.id `mod` size == 0 then
-            if null running then
-                collectWords rom final running
-            else
-                collectWords rom (running : final) []
-        else
-            collectWords rom final (running <> [f])
+    collectWords [] final running _ = filter (not . null) (running : final)
+    collectWords (t : iles) final running i
+        | GT.isEmptyTile t = collectWords iles (running : final) [] next
+        | otherwise = collectWords iles final (running <> [t]) next
+      where
+        next
+            | i == size = 1
+            | otherwise = i + 1
 
-    check ∷ [[Tile]] → [Int] → [Int] → ([Int], [Int])
     check [] valid invalid = (valid, invalid)
-    check (w : ords) valid invalid = if isValidWord (MSS.concat $ map (GL.displayLetter . letter) w) then check ords (add w valid) invalid else check ords valid (add w invalid)
-
-    add w list = map (\t → t.id) w <> list
+    check (w : ords) valid invalid
+        | isValidWord . MSS.concat $ map (GL.displayLetter . letter) w = check ords (add w valid) invalid
+        | otherwise = check ords valid (add w invalid)
+      where
+        add ws list = map (\t → t.id) ws <> list
 
 randomLetters ∷ (MonadState Model m) ⇒ Int → m [Int]
 randomLetters howMany = do
@@ -223,5 +223,5 @@ replaceTiles = do
         tiles ← produceTiles
         MS.modify $ \m → m{home = m.home{tiles = tiles, replaced = m.home.replaced + 1}}
 
-endGame :: Effect parent Model Action
-endGame = MS.modify $ \m -> m { mode = NotPlaying }
+endGame ∷ Effect parent Model Action
+endGame = MS.modify $ \m → m{mode = NotPlaying}
