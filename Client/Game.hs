@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE CPP #-}
 
 module Game where
 
@@ -52,7 +52,7 @@ newGame = do
     MS.modify $
         \m →
             m
-                { board = GT.replaceAt 85 vowel emptyTiles
+                { board = GT.replaceAt 61 vowel emptyTiles
                 , home = m.home{tiles = homeLetters}
                 , mode = Solo
                 }

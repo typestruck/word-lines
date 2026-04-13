@@ -6,7 +6,7 @@ data Status = Valid | Invalid deriving (Show, Eq, Ord)
 data Tile = Tile {id ∷ Int, letter ∷ Int, status ∷ Status} deriving (Show, Eq, Ord)
 
 size ∷ Int
-size = 13
+size = 11
 
 startingTiles ∷ Int
 startingTiles = 8

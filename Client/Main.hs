@@ -6,7 +6,7 @@ import Miso qualified as M
 import Miso.String qualified as MS
 import qualified Game as G
 import System.Random qualified as MR
-import Miso (defaultEvents, JS (Src), MisoString, CSS (Href))
+import Miso (defaultEvents, JS (Src), CSS (Href))
 
 #ifdef WASM
 #ifndef INTERACTIVE
