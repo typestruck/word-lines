@@ -57,7 +57,7 @@ handlers = homeHandler :<|> staticHandler
         generator ← CMIC.liftIO SR.newStdGen
         pure . Home $ GM.initModel generator
 
-    staticHandler = addCors <$> S.serveDirectoryWebApp "public"
+    staticHandler = addCors <$> S.serveDirectoryWebApp "public/static"
     addCors app req sendResponse = app req $ \res → sendResponse $ NW.mapResponseHeaders (("Access-Control-Allow-Origin", "localhost:8080") :) res
 
 application ∷ Application
@@ -65,5 +65,5 @@ application = S.serve (Proxy ∷ Proxy WordLinesApi) handlers
 
 main ∷ IO ()
 main = do
-    putStrLn "Server running at http://localhost:8081"
+    putStrLn "Server running at http://localhost:8081!!!!"
     NWHW.run 8081 application
