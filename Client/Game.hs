@@ -1,5 +1,5 @@
-{-# LANGUAGE ExtendedDefaultRules #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
 
 module Game where
 
@@ -27,6 +27,7 @@ import Miso.String qualified as MSS
 import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
+import Data.HashSet (HashSet)
 
 default (MisoString)
 
@@ -101,7 +102,7 @@ toggleTile t i = case t of
             MS.modify $ \m →
                 m
                     { selected = Nothing
-                    , board = updatedBoard
+                    , board = traceShow updatedBoard updatedBoard
                     , home =
                         m.home
                             { score = makeScore updatedBoard
@@ -133,7 +134,7 @@ makeScore = sum . map ms . filter (\t → t.status == Valid)
 checkBoard ∷ [Tile] → [Tile]
 checkBoard board = map check board
   where
-    (valid, invalid) = DB.bimap DS.fromList DS.fromList $ checkWords board
+    (valid, invalid) = checkWords board
     check t
         | DS.member t.id valid = t{status = Valid}
         | DS.member t.id invalid = t{status = Invalid}
@@ -146,7 +147,7 @@ isValidWord :: MisoString -> Bool
 isValidWord _ = True
 #endif
 
-checkWords ∷ [Tile] → ([Int], [Int])
+checkWords ∷ [Tile] → (HashSet Int, HashSet Int)
 checkWords board = check words [] $ map (\[t] → t.id) straggles
   where
     (words, straggles) =
@@ -156,24 +157,27 @@ checkWords board = check words [] $ map (\[t] → t.id) straggles
 
     rows = board
     columns = reorient board . DM.fromList . zip [0 .. size - 1] $ replicate size [] -- size - 1 because size % size = 0
+
     reorient [] running = concat $ DM.elems running
     reorient (t : iles) running = reorient iles $ DM.adjust (++ [t]) (t.id `mod` size) running
 
-    collectWords [] final running _ = filter (not . null) (running : final)
-    collectWords (t : iles) final running i
-        | GT.isEmptyTile t = collectWords iles (running : final) [] next
-        | otherwise = collectWords iles final (running <> [t]) next
-      where
-        next
-            | i == size = 1
-            | otherwise = i + 1
-
-    check [] valid invalid = (valid, invalid)
+    check [] valid invalid = (DS.fromList valid, DS.fromList invalid)
     check (w : ords) valid invalid
         | isValidWord . MSS.concat $ map (GL.displayLetter . letter) w = check ords (add w valid) invalid
         | otherwise = check ords valid (add w invalid)
       where
         add ws list = map (\t → t.id) ws <> list
+
+collectWords :: [Tile] -> [[Tile]] -> [Tile] -> Int -> [[Tile]]
+collectWords [] final running _ = filter (not . null) (running : final)
+collectWords (t : iles) final running i
+    | GT.isEmptyTile t = collectWords iles (running : final) [] next
+    | i == size = collectWords iles ((running <> [t]) : final) [] next
+    | otherwise = collectWords iles final (running <> [t]) next
+  where
+    next
+        | i == size = 1
+        | otherwise = i + 1
 
 randomLetters ∷ (MonadState Model m) ⇒ Int → m [Int]
 randomLetters howMany = do
