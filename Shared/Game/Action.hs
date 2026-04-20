@@ -3,8 +3,8 @@ module Game.Action where
 import Game.Tile (Tile)
 
 data Action
-    =
-      NewGame
+    = CheckAssets
+    | NewGame
     | SelectTile Tile
     | ToggleTile (Maybe Tile) Int
     | ReplaceTiles

@@ -27,15 +27,27 @@ view model =
         Solo → solo model
 
 notPlaying ∷ Model → [View Model Action]
-notPlaying _ =
+notPlaying model =
     [ HE.div_
         [HP.className "flex flex-col self-center pt-30 w-fit"]
         [ HE.h1_ [HP.className "text-4xl font-bold text-center"] [M.text "word lines"]
-        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm cursor-pointer", HP.onClick NewGame] [M.text "Play solo"]
+        , HE.button_ (playButtonProps [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm cursor-pointer"]) [M.text "Play solo"]
         , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm"] [M.text "Play vs (coming soon!)"]
         , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm"] [M.text "Play vs computer (coming soon!)"]
         ]
+    , -- classes are defined inline in the home page
+      HE.div_
+        [HP.classList_ [("loading-box", not model.assetsLoaded), ("hidden", model.assetsLoaded)]]
+        [ HE.div_
+            [HP.className "loader"]
+            []
+        , M.text "Loading game assets"
+        ]
     ]
+  where
+    playButtonProps p
+        | model.assetsLoaded = HP.onClick NewGame : p
+        | otherwise = p
 
 solo ∷ Model → [View Model Action]
 solo model =

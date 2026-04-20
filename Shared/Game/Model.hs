@@ -11,10 +11,11 @@ data Model = Model
     , mode :: Mode
     , selected ∷ Maybe Tile
     , generator ∷ StdGen
+    , assetsLoaded :: Bool
     }
 
 instance Eq Model where
-    m == n = m.board == n.board && m.home == n.home && m.selected == n.selected && m.mode == n.mode
+    m == n = m.board == n.board && m.home == n.home && m.selected == n.selected && m.mode == n.mode && m.assetsLoaded == n.assetsLoaded
 
 initModel ∷ StdGen → Model
-initModel generator = Model{ mode = NotPlaying, board = emptyTiles, home = barePlayer, generator = generator, selected = Nothing}
+initModel generator = Model{ mode = NotPlaying, assetsLoaded = False, board = emptyTiles, home = barePlayer, generator = generator, selected = Nothing}

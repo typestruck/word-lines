@@ -3,9 +3,11 @@
 
 module Game where
 
+import Control.Concurrent qualified as CC
 import Control.Monad qualified as CM
 import Control.Monad.RWS (MonadState)
 import Data.HashMap.Strict qualified as DM
+import Data.HashSet (HashSet)
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
 import Game.Action (Action (..))
@@ -17,7 +19,7 @@ import Game.Player (Player (..))
 import Game.Tile (Status (..), Tile (..), emptyTiles, size, startingTiles)
 import Game.Tile qualified as GT
 import Game.View qualified as GV
-import Miso (App, CSS, Effect, JS, scripts, styles)
+import Miso (App, CSS, Effect, JS, mount, scripts, styles)
 import Miso qualified as M
 import Miso.State qualified as MS
 import Miso.String (MisoString)
@@ -25,7 +27,6 @@ import Miso.String qualified as MSS
 import System.Random (StdGen)
 import System.Random qualified as MR
 import Prelude hiding (words)
-import Data.HashSet (HashSet)
 
 default (MisoString)
 
@@ -33,16 +34,36 @@ maxReplaces ∷ Int
 maxReplaces = 2
 
 app ∷ [JS] → [CSS] → StdGen → App Model Action
-app scripts styles generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = styles}
+app scripts styles generator = (M.component (GM.initModel generator) update GV.view){scripts = scripts, styles = styles, mount = Just CheckAssets}
 
 update ∷ Action → Effect parent Model Action
 update =
     \case
+        CheckAssets → checkAssets
         NewGame → newGame
         SelectTile t → selectTile t
         ToggleTile t i → toggleTile t i
         ReplaceTiles → replaceTiles
         EndGame → endGame
+
+#ifdef WASM
+foreign import javascript "return (typeof window.isValidWordLine !== 'undefined')" allAssetsLoaded :: Int -> Bool
+#else
+allAssetsLoaded :: Int -> Bool
+allAssetsLoaded _ = True
+#endif
+
+checkAssets ∷ Effect parent Model Action
+checkAssets
+    | allAssetsLoaded 0 = do
+        MS.modify $
+            \m →
+                m
+                    { assetsLoaded = True
+                    }
+    | otherwise = do
+        M.io_ $ CC.threadDelay 500000
+        checkAssets
 
 newGame ∷ Effect parent Model Action
 newGame = do
@@ -100,7 +121,7 @@ toggleTile t i = case t of
             MS.modify $ \m →
                 m
                     { selected = Nothing
-                    , board =  updatedBoard
+                    , board = updatedBoard
                     , home =
                         m.home
                             { score = makeScore updatedBoard
@@ -155,7 +176,6 @@ checkWords board = check words [] $ map (\[t] → t.id) straggles
 
     rows = board
     columns = reorient board . DM.fromList . zip [0 .. size - 1] $ replicate size [] -- size - 1 because size % size = 0
-
     reorient [] running = concat $ DM.elems running
     reorient (t : iles) running = reorient iles $ DM.adjust (++ [t]) (t.id `mod` size) running
 
@@ -166,7 +186,7 @@ checkWords board = check words [] $ map (\[t] → t.id) straggles
       where
         add ws list = map (\t → t.id) ws <> list
 
-collectWords :: [Tile] -> [[Tile]] -> [Tile] -> Int -> [[Tile]]
+collectWords ∷ [Tile] → [[Tile]] → [Tile] → Int → [[Tile]]
 collectWords [] final running _ = filter (not . null) (running : final)
 collectWords (t : iles) final running i
     | GT.isEmptyTile t = collectWords iles (running : final) [] next
