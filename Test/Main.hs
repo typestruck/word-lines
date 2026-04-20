@@ -4,7 +4,6 @@ module Main where
 
 import Control.Monad qualified as CM
 import Data.HashSet qualified as DS
-import Debug.Trace (traceShow)
 import Game qualified as G
 import Game.Letters (letterA, letterZ)
 import Game.Tile (Tile, emptyTiles, id, size)
@@ -40,18 +39,10 @@ prop_words_are_two_or_more_contiguous_letters = H.withTests 1000 . H.property $ 
 prop_words_break_at_end_of_rows ∷ Property
 prop_words_break_at_end_of_rows = H.withTests 1000 . H.property $ do
     ts ← H.forAll . HG.list (HR.singleton 5) . HG.int $ HR.linear letterA letterZ
-    --three tiles in one row, 2 in the other
+    -- three tiles in one row, 2 in the other
     i ← H.forAll $ HG.choice [HG.int . HR.singleton $ s - 2 | s ← zipWith (*) [1 ..] $ replicate (size - 1) size]
     let words = G.collectWords (fillBoard $ zipWith GT.bareTile [i ..] ts) [] [] 1
-    words === [zipWith GT.bareTile [i + 3..] $ drop 3 ts, zipWith GT.bareTile [i..] $ take 3 ts]
-
--- prop_words_break_at_end_of_columns ∷ Property
--- prop_words_break_at_end_of_columns = H.withTests 1000 . H.property $ do
---     --three tiles in one row, 2 in the other
---     ts ← H.forAll . HG.list (HR.singleton 5) . HG.int $ HR.linear letterA letterZ
---     i ← H.forAll . HG.int $ HR.linear 101 109
---     let words = G.collectWords (fillBoard $ zipWith GT.bareTile [i ..] ts) [] [] 1
---     words === [zipWith GT.bareTile [i + 3..] $ drop 3 ts, zipWith GT.bareTile [i..] $ take 3 ts]
+    words === [zipWith GT.bareTile [i + 3 ..] $ drop 3 ts, zipWith GT.bareTile [i ..] $ take 3 ts]
 
 tests ∷ IO Bool
 tests = H.checkParallel $$H.discover

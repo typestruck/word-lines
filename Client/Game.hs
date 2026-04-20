@@ -5,11 +5,9 @@ module Game where
 
 import Control.Monad qualified as CM
 import Control.Monad.RWS (MonadState)
-import Data.Bifunctor qualified as DB
 import Data.HashMap.Strict qualified as DM
 import Data.HashSet qualified as DS
 import Data.List qualified as DL
-import Debug.Trace (traceShow)
 import Game.Action (Action (..))
 import Game.Letters as GL
 import Game.Mode (Mode (NotPlaying, Solo))
@@ -102,7 +100,7 @@ toggleTile t i = case t of
             MS.modify $ \m →
                 m
                     { selected = Nothing
-                    , board = traceShow updatedBoard updatedBoard
+                    , board =  updatedBoard
                     , home =
                         m.home
                             { score = makeScore updatedBoard

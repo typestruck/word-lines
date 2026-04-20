@@ -22,16 +22,18 @@ default (MisoString)
 
 view ∷ Model → View Model Action
 view model =
-    HE.main_ [HP.className "dark:bg-gray-800 dark:text-white min-h-full"] $ case model.mode of
+    HE.main_ [HP.className "dark:bg-gray-800 dark:text-white min-h-full flex flex-col"] $ case model.mode of
         NotPlaying → notPlaying model
         Solo → solo model
 
 notPlaying ∷ Model → [View Model Action]
 notPlaying _ =
     [ HE.div_
-        [HP.className "flex flex-col items-center pt-30"]
-        [ HE.h1_ [HP.className "text-4xl font-bold"] [M.text "word lines"]
+        [HP.className "flex flex-col self-center pt-30 w-fit"]
+        [ HE.h1_ [HP.className "text-4xl font-bold text-center"] [M.text "word lines"]
         , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play solo"]
+        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play vs (coming soon!)"]
+        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play vs computer (coming soon!)"]
         ]
     ]
 
