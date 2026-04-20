@@ -43,7 +43,7 @@ instance Accept Html where
 instance (ToHtml a) ⇒ MimeRender Html a where
     mimeRender _ = fullPage . MHR.toHtml
       where
-        fullPage bs = "<!doctype html><html lang=en><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta charset=utf-8><title>word lines</title><style>.hidden { display: none} .loading-box { display:flex;align-items:center;position:absolute;bottom:10px;right:10px;border-radius:2px;color:white;background:purple;font-weight:bold;padding:10px } .loader { margin-right:5px;border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%;width: 35px;height: 35px;animation: spin 2s linear infinite;} @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}</style><link rel='stylesheet' href='static/styles.css?q=s33'/><script src='static/dictionary.js' async></script></head><body>" <> bs <> "</body><script src='static/index.js' type='module'></script></html>"
+        fullPage bs = "<!doctype html><html lang=en><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta charset=utf-8><title>word lines</title><style>.hidden { display: none} .loading-box { display:flex;align-items:center;position:absolute;bottom:10px;right:10px;border-radius:2px;color:white;background:purple;font-weight:bold;padding:10px } .loader { margin-right:5px;border: 8px solid #f3f3f3; border-top: 8px solid oklch(62.7% 0.194 149.214); border-radius: 50%;width: 35px;height: 35px;animation: spin 2s linear infinite;} @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}</style><link rel='stylesheet' href='static/styles.css?b=a3'/><script src='static/dictionary.js' async></script></head><body>" <> bs <> "</body><script src='static/index.js?d=v' type='module'></script></html>"
 
 instance ToHtml Home where
     toHtml (Home model) = MHR.toHtml $ GV.view model
@@ -56,7 +56,7 @@ handlers = homeHandler :<|> staticHandler
     homeHandler = do
         generator ← CMIC.liftIO SR.newStdGen
         pure . Home $ GM.initModel generator
-
+    -- only used for development
     staticHandler = addCors <$> S.serveDirectoryWebApp "public/static"
     addCors app req sendResponse = app req $ \res → sendResponse $ NW.mapResponseHeaders (("Access-Control-Allow-Origin", "localhost:8080") :) res
 
@@ -65,5 +65,5 @@ application = S.serve (Proxy ∷ Proxy WordLinesApi) handlers
 
 main ∷ IO ()
 main = do
-    putStrLn "Server running at http://localhost:8081!!!!"
+    putStrLn "Server running at http://localhost:8081"
     NWHW.run 8081 application

@@ -46,13 +46,7 @@ update =
         ReplaceTiles → replaceTiles
         EndGame → endGame
 
-#ifdef WASM
-foreign import javascript "return (typeof window.isValidWordLine !== 'undefined')" allAssetsLoaded :: Int -> Bool
-#else
-allAssetsLoaded :: Int -> Bool
-allAssetsLoaded _ = True
-#endif
-
+-- | Check if the dictionary file has been downloaded
 checkAssets ∷ Effect parent Model Action
 checkAssets
     | allAssetsLoaded 0 = do
@@ -64,6 +58,13 @@ checkAssets
     | otherwise = do
         M.io_ $ CC.threadDelay 500000
         checkAssets
+
+#ifdef WASM
+foreign import javascript "return (typeof window.isValidWordLine !== 'undefined')" allAssetsLoaded :: Int -> Bool
+#else
+allAssetsLoaded :: Int -> Bool
+allAssetsLoaded _ = True
+#endif
 
 newGame ∷ Effect parent Model Action
 newGame = do
@@ -99,6 +100,11 @@ produceTiles = zipWith GT.bareTile [1 .. startingTiles] <$> randomLetters starti
 selectTile ∷ Tile → Effect parent Model Action
 selectTile t = MS.modify $ \m → m{selected = Just t}
 
+-- | Rules:
+-- | * Tiles can be placed onto the board only next to other existing tiles
+-- | * Tiles can be removed from the board if the available tiles in the players hand is less than `startingTiles`
+-- | * After a tile is placed and a valid word is formed, the player's hand is filled
+-- | These rules should ensure players cannot replace their hand just by placing tiles around
 toggleTile ∷ Maybe Tile → Int → Effect parent Model Action
 toggleTile t i = case t of
     Nothing → do
@@ -148,7 +154,7 @@ makeScore = sum . map ms . filter (\t → t.status == Valid)
         | t.letter == letterF || t.letter == letterH || t.letter == letterV || t.letter == letterW || t.letter == letterY = 4
         | t.letter == letterK = 5
         | t.letter == letterJ || t.letter == letterX = 8
-        | t.letter == letterQ || t.letter == letterZ = 10
+        | otherwise = 10
 
 checkBoard ∷ [Tile] → [Tile]
 checkBoard board = map check board
@@ -159,6 +165,7 @@ checkBoard board = map check board
         | DS.member t.id invalid = t{status = Invalid}
         | otherwise = t
 
+-- | The set of valid words stays in a separated file for better caching
 #ifdef WASM
 foreign import javascript "return window.isValidWordLine($1);" isValidWord :: MisoString -> Bool
 #else
@@ -186,6 +193,7 @@ checkWords board = check words [] $ map (\[t] → t.id) straggles
       where
         add ws list = map (\t → t.id) ws <> list
 
+-- | A "word" is any sequence of tiles terminated by a blank or end of row / column
 collectWords ∷ [Tile] → [[Tile]] → [Tile] → Int → [[Tile]]
 collectWords [] final running _ = filter (not . null) (running : final)
 collectWords (t : iles) final running i
@@ -234,8 +242,9 @@ randomLetters howMany = do
         | d >= 0.535292248 && d <= 0.538979490 = letterZ
         | d >= 0.644002295 && d <= 0.647066783 = letterX
         | d >= 0.681059311 && d <= 0.682697736 = letterQ
-        | d >= 0.753512963 && d <= 0.75471501 = letterJ
+        | otherwise = letterJ
 
+-- | Randomize tiles in the player's hand
 replaceTiles ∷ Effect parent Model Action
 replaceTiles = do
     model ← MS.get

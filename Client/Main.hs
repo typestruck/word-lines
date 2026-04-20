@@ -18,6 +18,7 @@ main ∷ IO ()
 #ifdef INTERACTIVE
 main = do
     generator ← MR.newStdGen
+    -- cumbersome, but for development we load assets from a local server so it is possible to use miso's hot reload
     M.reload defaultEvents $ G.app [Src (MS.pack "http://localhost:8081/static/dictionary.js") False] [Href (MS.pack "http://localhost:8081/static/styles.css") False] generator
 #else
 main = do

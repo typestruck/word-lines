@@ -5,6 +5,7 @@ data Status = Valid | Invalid deriving (Show, Eq, Ord)
 
 data Tile = Tile {id ∷ Int, letter ∷ Int, status ∷ Status} deriving (Show, Eq, Ord)
 
+-- | The border dimensions
 size ∷ Int
 size = 11
 
