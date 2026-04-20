@@ -32,8 +32,8 @@ notPlaying _ =
         [HP.className "flex flex-col self-center pt-30 w-fit"]
         [ HE.h1_ [HP.className "text-4xl font-bold text-center"] [M.text "word lines"]
         , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play solo"]
-        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play vs (coming soon!)"]
-        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm", HP.onClick NewGame] [M.text "Play vs computer (coming soon!)"]
+        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm"] [M.text "Play vs (coming soon!)"]
+        , HE.button_ [HP.className "p-10 pl-15 pr-15 text-xl bg-green-600 font-bold mt-15 rounded-sm"] [M.text "Play vs computer (coming soon!)"]
         ]
     ]
 
